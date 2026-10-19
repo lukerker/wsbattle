@@ -1,0 +1,11 @@
+{
+  "name": "ws-simulator",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "npm test --workspace @ws/engine",
+    "typecheck": "tsc -p packages/engine",
+    "review": "node scripts/build-review.ts"
+  }
+}

@@ -1,0 +1,908 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>BTR-W107 核對表</title>
+<style>body{font:14px/1.6 system-ui,sans-serif;max-width:1200px;margin:2rem auto;padding:0 1rem}
+section{border-top:2px solid #ccc;margin-top:1.5rem}table{border-collapse:collapse;width:100%}
+td,th{border:1px solid #ccc;padding:6px;vertical-align:top;width:33%}pre{margin:0;white-space:pre-wrap;font-size:11px}
+.warn{color:#b45309;margin:4px 0}.note{color:#555}small{color:#888;font-weight:normal}</style>
+<h1>BTR-W107 預組核對表</h1><p>請逐張核對：日文是否讀對、中文是否通順、程式化結果是否和原文一致。有 ⚠ 的是我不確定的地方。</p>
+<section><h2>BTR/W107-T01　伊地知虹夏 <small>伊地知虹夏</small> ×4</h2>
+<p>黃｜角色｜Lv0｜費用0｜攻擊500｜魂傷1｜特徵：音樂(音楽)、認真的人(しっかり者)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】応援 このカードの前のあなたのキャラすべてに、パワーを＋500。</td><td>【永】應援 此卡前面的你的角色全部，攻擊力+500。</td><td><pre>{
+ "kind": "continuous",
+ "keyword": {
+  "id": "assist"
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "frontOfSource"
+   },
+   "amount": 500,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr><tr><td>【起】［① 手札のクライマックスを1枚控え室に置く］あなたは自分の控え室のキャラを1枚選び、手札に戻す。</td><td>【起】［① 手牌的名場面1張放到休息室］你選擇自己休息室的角色1張，回到手牌。</td><td><pre>{
+ "kind": "activated",
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 1
+  },
+  {
+   "kind": "discard",
+   "selector": {
+    "zone": "hand",
+    "side": "self",
+    "filter": {
+     "type": "climax"
+    },
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ],
+ "optional": true,
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "waitingRoom",
+    "side": "self",
+    "filter": {
+     "type": "character"
+    },
+    "count": {
+     "exactly": 1
+    }
+   },
+   "to": {
+    "zone": "hand",
+    "side": "self"
+   }
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：放後列：她斜前方2格的角色+500（任何角色都可以）。付1能量並丟1張CX，從休息室撿回任意1張角色。手上多出來、用不到的CX，可以用這招換成角色。</p></section>
+<section><h2>BTR/W107-T02　樂團的領導者 伊地知虹夏 <small>バンドのまとめ役 伊地知虹夏</small> ×4</h2>
+<p>黃｜角色｜Lv0｜費用0｜攻擊500｜魂傷1｜特徵：音樂(音楽)、認真的人(しっかり者)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】あなたの黄のクライマックスがクライマックス置場に置かれた時、あなたは自分のキャラを1枚選び、そのターン中、パワーを＋1500。</td><td>【自】當你的黃色的名場面被放置到名場面區時，你選擇自己的角色1張，在那個回合中，攻擊力+1500。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "climaxPlaced",
+  "side": "self",
+  "filter": {
+   "color": "yellow"
+  }
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    }
+   },
+   "amount": 1500,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr><tr><td>【起】集中［① このカードを【横】する］あなたは自分の山札の上から5枚をめくり、控え室に置く。それらのカードのクライマックス1枚につき、あなたは1枚まで引く。</td><td>【起】集中［① 將此卡【橫置】］你從自己的牌組上方翻5張，放到休息室。那些卡片中每有1張名場面，你抽最多1張牌。</td><td><pre>{
+ "kind": "activated",
+ "keyword": {
+  "id": "concentrate"
+ },
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 1
+  },
+  {
+   "kind": "restSource"
+  }
+ ],
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "deck",
+    "side": "self",
+    "count": {
+     "exactly": 5
+    },
+    "fromTop": 5,
+    "chooser": "self"
+   },
+   "to": {
+    "zone": "waitingRoom",
+    "side": "self"
+   },
+   "bind": "milled"
+  },
+  {
+   "op": "draw",
+   "upTo": {
+    "countOfBound": "milled",
+    "filter": {
+     "type": "climax"
+    }
+   }
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：打出黃色CX（「憧憬的樂團活動」或「第一張的大合照」）時，選1張角色+1500。紅色CX「史上最糟的藝人照」不會觸發。集中：付1能量並把她橫置，翻5張，每1張CX抽1張。建議放後列使用。</p></section>
+<section><h2>BTR/W107-T03　特別準備的道具 山田涼 <small>とっておきのアイテム 山田リョウ</small> ×2</h2>
+<p>黃｜角色｜Lv0｜費用0｜攻擊2000｜魂傷1｜特徵：音樂(音楽)、怪人(変人)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】あなたのストックが3枚以下なら、このカードのパワーを＋2000。</td><td>【永】你的能量在3張以下的話，此卡的攻擊力+2000。</td><td><pre>{
+ "kind": "continuous",
+ "condition": {
+  "kind": "stockAtMost",
+  "n": 3
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": 2000,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：能量在3張以下時，她是4000，遊戲前期非常強。能量存到4張以上就會變回2000，適合前期在前列打。</p></section>
+<section><h2>BTR/W107-T04　主奏吉他手 後藤一里 <small>リードギター 後藤ひとり</small> ×4</h2>
+<p>黃｜角色｜Lv1｜費用0｜攻擊4500｜魂傷1｜特徵：音樂(音楽)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードが手札から舞台に置かれた時、そのターン中、このカードのパワーを＋X。Xはあなたの《音楽》のキャラの枚数×500に等しい。</td><td>【自】此卡從手牌被放置到舞台時，在那個回合中，此卡的攻擊力+X。X等於你的《音樂》的角色張數×500。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": {
+    "per": {
+     "zone": "stage",
+     "side": "self",
+     "filter": {
+      "trait": "音楽"
+     },
+     "count": "all"
+    },
+    "multiplier": 500,
+    "evaluate": "atResolution"
+   },
+   "duration": "thisTurn"
+  }
+ ]
+}</pre><p class="warn">⚠ X 在結算當下算定（含她自己），之後場上張數變動不再影響。這是依企劃書「發動當下定值型」的設計；請對照官方總合規則確認此類寫法的結算時機。</p></td></tr><tr><td>【自】【CXコンボ】このカードがアタックした時、クライマックス置場に「憧れたバンド活動」があり、他のあなたの《音楽》のキャラがいるなら、あなたは自分の山札を上から4枚を見て、《音楽》のキャラを1枚まで選び相手に見せ、手札に加え、残りのカードを控え室に置く。</td><td>【自】【CX連動】此卡攻擊時，名場面區有「憧憬的樂團活動」，有其他的你的《音樂》的角色存在的話，你從自己的牌組上方看最多4張，選擇《音樂》的角色最多1張給對手確認，加到手牌，剩下的卡片放到休息室。</td><td><pre>{
+ "kind": "auto",
+ "keyword": {
+  "id": "cxCombo",
+  "climaxName": "憧れたバンド活動"
+ },
+ "trigger": {
+  "event": "attacks"
+ },
+ "condition": {
+  "kind": "all",
+  "of": [
+   {
+    "kind": "climaxInZone",
+    "name": "憧れたバンド活動"
+   },
+   {
+    "kind": "countAtLeast",
+    "selector": {
+     "zone": "stage",
+     "side": "self",
+     "filter": {
+      "trait": "音楽",
+      "excludeSource": true
+     },
+     "count": "all"
+    },
+    "n": 1
+   }
+  ]
+ },
+ "effects": [
+  {
+   "op": "lookTopPick",
+   "look": 4,
+   "pick": {
+    "filter": {
+     "trait": "音楽"
+    },
+    "upTo": 1
+   },
+   "rest": "waitingRoom"
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：登場那回合，每有1張《音樂》角色（包含她自己）+500。場上5張都是《音樂》的話，她是7000。連動CX「憧憬的樂團活動」：攻擊就觸發，不用打倒對手。看4張，拿1張《音樂》角色。</p></section>
+<section><h2>BTR/W107-T05　貝斯 山田涼 <small>ベース 山田リョウ</small> ×2</h2>
+<p>黃｜角色｜Lv1｜費用0｜攻擊4500｜魂傷1｜特徵：音樂(音楽)、怪人(変人)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードがアタックした時、あなたは他の自分の《音楽》のキャラを1枚選び、そのターン中、パワーを＋X。Xはそのキャラのソウル×1000に等しい。</td><td>【自】此卡攻擊時，你選擇其他的自己的《音樂》的角色1張，在那個回合中，攻擊力+X。X等於那張角色的魂傷×1000。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "attacks"
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "filter": {
+     "trait": "音楽",
+     "excludeSource": true
+    },
+    "count": {
+     "exactly": 1
+    },
+    "as": "target"
+   },
+   "amount": {
+    "perSoulOfBound": "target",
+    "multiplier": 1000,
+    "evaluate": "atResolution"
+   },
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr><tr><td>【自】このカードのバトル中、あなたの受けたダメージがキャンセルされた時、あなたはこのカードを手札に戻してよい。</td><td>【自】在此卡的戰鬥中，你所受到的傷害被取消時，你可以將此卡返回手牌。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "damageCancelledInBattle"
+ },
+ "optional": true,
+ "effects": [
+  {
+   "op": "returnSourceToHand"
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：加攻給「別人」，所以先用她攻擊。魂傷1的角色+1000，魂傷2的+2000；打出CX讓魂傷+1時加更多。效果2：對手打她時，如果你取消了傷害，可以把她收回手牌，避免被打倒。</p></section>
+<section><h2>BTR/W107-T06　音樂話題～ 伊地知虹夏 <small>オトバナ～ 伊地知虹夏</small> ×2</h2>
+<p>黃｜角色｜Lv1｜費用1｜攻擊500｜魂傷1｜判定：soul｜特徵：音樂(音楽)、認真的人(しっかり者)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】あなたがこのカードの「助太刀」を使った時、あなたは自分の山札の上から1枚を公開する。その公開したカードが《音楽》のキャラなら手札に加え、あなたは自分の手札を1枚選び、控え室に置く。（そうでないなら元に戻す）</td><td>【自】當你使用此卡的『助太刀』時，你將自己的牌組上方1張公開。那張卡片是《音樂》的角色的話加到手牌，你選擇自己的手牌1張，放到休息室。(如果不是的話放回原位)</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "usedBackup"
+ },
+ "effects": [
+  {
+   "op": "revealTopCheck",
+   "filter": {
+    "type": "character",
+    "trait": "音楽"
+   },
+   "ifMatch": [
+    {
+     "op": "moveCards",
+     "from": {
+      "zone": "deck",
+      "side": "self",
+      "count": {
+       "exactly": 1
+      },
+      "fromTop": 1
+     },
+     "to": {
+      "zone": "hand",
+      "side": "self"
+     }
+    },
+    {
+     "op": "moveCards",
+     "from": {
+      "zone": "hand",
+      "side": "self",
+      "count": {
+       "exactly": 1
+      }
+     },
+     "to": {
+      "zone": "waitingRoom",
+      "side": "self"
+     }
+    }
+   ]
+  }
+ ]
+}</pre></td></tr><tr><td>【起】【カウンター】助太刀2000 レベル1［① 手札のこのカードを控え室に置く］（あなたは自分のフロントアタックされているキャラを1枚選び、そのターン中、パワーを＋2000）</td><td>【起】【反擊】助太刀2000 等級1［① 手牌的此卡放到休息室］(你選擇自己的正在被正打的角色1張，在那個回合中，攻擊力+2000)</td><td><pre>{
+ "kind": "activated",
+ "keyword": {
+  "id": "backup",
+  "power": 2000,
+  "level": 1
+ },
+ "timing": "counter",
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 1
+  },
+  {
+   "kind": "discardSource"
+  }
+ ],
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    },
+    "relation": "inBattleWithSource"
+   },
+   "amount": 2000,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：主要當防守卡：對手正打你的角色時，付1能量從手牌丟出，被打的角色+2000。你自己的等級要達到1才能用，對手側打時不能用。使用時還會順便翻1張換牌。</p></section>
+<section><h2>BTR/W107-T07　鼓手 伊地知虹夏 <small>ドラム 伊地知虹夏</small> ×2</h2>
+<p>黃｜角色｜Lv2｜費用0｜攻擊4000｜魂傷1｜判定：soul｜特徵：音樂(音楽)、認真的人(しっかり者)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】応援 このカードの前のあなたのキャラすべてに、パワーを＋1000。</td><td>【永】應援 此卡前面的你的角色全部，攻擊力+1000。</td><td><pre>{
+ "kind": "continuous",
+ "keyword": {
+  "id": "assist"
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "frontOfSource"
+   },
+   "amount": 1000,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：放後列：她斜前方2格的角色+1000。後列兩格分別放她和「伊地知虹夏」(Lv0)，前列中間可以同時吃到兩個應援。</p></section>
+<section><h2>BTR/W107-T08　冷酷且孤高 山田涼 <small>クールで孤高 山田リョウ</small> ×2</h2>
+<p>黃｜角色｜Lv2｜費用1｜攻擊7000｜魂傷1｜判定：soul｜特徵：音樂(音楽)、怪人(変人)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】あなたのターン中、他のあなたの《音楽》のキャラ1枚につき、このカードのパワーを＋1500。</td><td>【永】在你的回合中，其他的你的《音樂》的角色每有1張，此卡的攻擊力+1500。</td><td><pre>{
+ "kind": "continuous",
+ "condition": {
+  "kind": "myTurn"
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": {
+    "per": {
+     "zone": "stage",
+     "side": "self",
+     "filter": {
+      "trait": "音楽",
+      "excludeSource": true
+     },
+     "count": "all"
+    },
+    "multiplier": 1500,
+    "evaluate": "live"
+   },
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：自己回合場上其他4張都是《音樂》的話，她是13000，攻擊力很高。注意：對手回合沒有加成，只有7000，防守比較弱。</p></section>
+<section><h2>BTR/W107-T09　山田涼 <small>山田リョウ</small> ×2</h2>
+<p>黃｜角色｜Lv3｜費用2｜攻擊10000｜魂傷2｜判定：soul｜特徵：音樂(音楽)、怪人(変人)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】［手札を1枚控え室に置く］このカードが手札から舞台に置かれた時、あなたはコストを払ってよい。そうしたら、あなたは自分の控え室のキャラを2枚まで選び、手札に戻す。</td><td>【自】［手牌1張放到休息室］此卡從手牌被放置到舞台時，你可以支付代價。支付代價的話，你選擇自己休息室的角色最多2張，回到手牌。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "optional": true,
+ "cost": [
+  {
+   "kind": "discard",
+   "selector": {
+    "zone": "hand",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "waitingRoom",
+    "side": "self",
+    "filter": {
+     "type": "character"
+    },
+    "count": {
+     "upTo": 2
+    }
+   },
+   "to": {
+    "zone": "hand",
+    "side": "self"
+   }
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：登場時丟1撿2，手牌會多1張，適合終盤補充手牌。</p></section>
+<section><h2>BTR/W107-T10　樂團名「團結Band」 <small>バンド名「結束バンド」</small> ×2</h2>
+<p>黃｜事件｜Lv1｜費用1</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>あなたは自分の山札を見てクライマックスを1枚まで選んで相手に見せ、手札に加え、その山札をシャッフルする。</td><td>你從自己的牌組選擇名場面最多1張給對手確認，加到手牌，將那個牌組洗牌。</td><td><pre>{
+ "kind": "event",
+ "effects": [
+  {
+   "op": "searchDeck",
+   "filter": {
+    "type": "climax"
+   },
+   "upTo": 1,
+   "reveal": true,
+   "shuffle": true
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：從牌組直接選1張CX加入手牌，用完放進休息室。想發動「主奏吉他手 後藤一里」的連動，就拿「憧憬的樂團活動」。</p></section>
+<section><h2>BTR/W107-T11　憧憬的樂團活動 <small>憧れたバンド活動</small> ×4</h2>
+<p>黃｜名場面｜判定：choice</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】あなたのキャラすべてに、パワーを＋1000し、ソウルを＋1。</td><td>【永】你的角色全部，攻擊力+1000，魂傷+1。</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 1000,
+   "duration": "whileActive"
+  },
+  {
+   "op": "modifySoul",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 1,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：在高潮階段從手牌打出，效果持續到這回合結束。連動：「主奏吉他手 後藤一里」。黃色CX，也會觸發「樂團的領導者 伊地知虹夏」。判定翻到這張時：從休息室選1張判定標誌是「魂」的角色，加入手牌或放進能量區。</p></section>
+<section><h2>BTR/W107-T12　第一張的大合照 <small>初めて撮った皆との写真</small> ×2</h2>
+<p>黃｜名場面｜判定：soul+soul</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】あなたのキャラすべてに、ソウルを＋2。</td><td>【永】你的角色全部，魂傷+2。</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifySoul",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 2,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：沒有連動角色，效果是全隊魂傷+2，用來把傷害打高。黃色CX，也會觸發「樂團的領導者 伊地知虹夏」。判定翻到時，這次攻擊魂傷+2。</p></section>
+<section><h2>BTR/W107-T13　樂團女子？ 後藤一里 <small>バンド女子？ 後藤ひとり</small> ×2</h2>
+<p>紅｜角色｜Lv0｜費用0｜攻擊1000｜魂傷1｜特徵：音樂(音楽)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】他のあなたの「ギターボーカル 喜多郁代」すべてに、パワーを＋1000し、ソウルを＋1。</td><td>【永】其他的你的「主唱吉他手 喜多郁代」全部，攻擊力+1000，魂傷+1。</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "filter": {
+     "name": "ギターボーカル 喜多郁代",
+     "excludeSource": true
+    },
+    "count": "all"
+   },
+   "amount": 1000,
+   "duration": "whileActive"
+  },
+  {
+   "op": "modifySoul",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "filter": {
+     "name": "ギターボーカル 喜多郁代",
+     "excludeSource": true
+    },
+    "count": "all"
+   },
+   "amount": 1,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr><tr><td>【自】絆／「ギターボーカル 喜多郁代」［手札を1枚控え室に置く］（このカードがプレイされて舞台に置かれた時、あなたはコストを払ってよい。そうしたら、あなたは自分の控え室の「ギターボーカル 喜多郁代」を1枚選び、手札に戻す）</td><td>【自】絆／「主唱吉他手 喜多郁代」［手牌1張放到休息室］(此卡被使用被放置到舞台時，你可以支付代價。支付代價的話，你選擇自己休息室的「主唱吉他手 喜多郁代」1張，回到手牌)</td><td><pre>{
+ "kind": "auto",
+ "keyword": {
+  "id": "bond",
+  "targetName": "ギターボーカル 喜多郁代"
+ },
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "optional": true,
+ "cost": [
+  {
+   "kind": "discard",
+   "selector": {
+    "zone": "hand",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "waitingRoom",
+    "side": "self",
+    "filter": {
+     "name": "ギターボーカル 喜多郁代"
+    },
+    "count": {
+     "exactly": 1
+    }
+   },
+   "to": {
+    "zone": "hand",
+    "side": "self"
+   }
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：專門搭配「主唱吉他手 喜多郁代」（Lv1 攻擊5500）。一里放後列，郁代會變成6500、魂傷2。絆：一里從手牌登場時丟1張手牌，就能從休息室撿回郁代。</p></section>
+<section><h2>BTR/W107-T14　後藤一里 <small>後藤ひとり</small> ×2</h2>
+<p>紅｜角色｜Lv0｜費用0｜攻擊2000｜魂傷1｜特徵：音樂(音楽)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードが手札から舞台に置かれた時、あなたは自分の山札を上から3枚まで見て、イベントを1枚まで選び相手に見せ、手札に加え、残りのカードを控え室に置く。手札に加えたなら、あなたは自分の手札を1枚選び、控え室に置く。</td><td>【自】此卡從手牌被放置到舞台時，你從自己的牌組上方看最多3張，選擇事件最多1張給對手確認，加到手牌，剩下的卡片放到休息室。加到手牌的話，你選擇自己的手牌1張，放到休息室。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "effects": [
+  {
+   "op": "lookTopPick",
+   "look": 3,
+   "pick": {
+    "filter": {
+     "type": "event"
+    },
+    "upTo": 1
+   },
+   "rest": "waitingRoom",
+   "then": [
+    {
+     "op": "moveCards",
+     "from": {
+      "zone": "hand",
+      "side": "self",
+      "count": {
+       "exactly": 1
+      }
+     },
+     "to": {
+      "zone": "waitingRoom",
+      "side": "self"
+     }
+    }
+   ]
+  }
+ ]
+}</pre></td></tr><tr><td>【自】このカードが手札から舞台に置かれた時、相手の前列のキャラが1枚以下なら、あなたは相手の前列のコスト0以下のキャラを1枚選び、控え室に置いてよい。</td><td>【自】此卡從手牌被放置到舞台時，對手的前列的角色在1張以下的話，你可以選擇對手的前列的費用0以下的角色1張，放到休息室。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "optional": true,
+ "condition": {
+  "kind": "countAtMost",
+  "selector": {
+   "zone": "stage",
+   "side": "opponent",
+   "filter": {
+    "row": "front"
+   },
+   "count": "all"
+  },
+  "n": 1
+ },
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "stage",
+    "side": "opponent",
+    "filter": {
+     "row": "front",
+     "costAtMost": 0
+    },
+    "count": {
+     "exactly": 1
+    }
+   },
+   "to": {
+    "zone": "waitingRoom",
+    "side": "opponent"
+   }
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：效果1：看3張找事件（本牌組是「樂團名『團結Band』」）。找到要丟1張手牌，沒找到的話3張都進休息室。效果2：對手前列只有1張以下角色時，可以把1張費用0的角色直接送進休息室，不用戰鬥。</p></section>
+<section><h2>BTR/W107-T15　陽角 喜多郁代 <small>陽キャ 喜多郁代</small> ×4</h2>
+<p>紅｜角色｜Lv0｜費用0｜攻擊2500｜魂傷1｜特徵：音樂(音楽)、人氣者(人気者)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】バトル中のこのカードが【リバース】した時、あなたは自分の山札を上から3枚まで見て、クライマックスを1枚まで選び相手に見せ、手札に加え、残りのカードを控え室に置く。手札に加えたなら、あなたは自分の手札を1枚選び、控え室に置く。</td><td>【自】戰鬥中的此卡【倒置】時，你從自己的牌組上方看最多3張，選擇名場面最多1張給對手確認，加到手牌，剩下的卡片放到休息室。加到手牌的話，你選擇自己的手牌1張，放到休息室。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "reversedInBattle"
+ },
+ "effects": [
+  {
+   "op": "lookTopPick",
+   "look": 3,
+   "pick": {
+    "filter": {
+     "type": "climax"
+    },
+    "upTo": 1
+   },
+   "rest": "waitingRoom",
+   "then": [
+    {
+     "op": "moveCards",
+     "from": {
+      "zone": "hand",
+      "side": "self",
+      "count": {
+       "exactly": 1
+      }
+     },
+     "to": {
+      "zone": "waitingRoom",
+      "side": "self"
+     }
+    }
+   ]
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：Lv0就有2500，數值很高。被打倒時看3張找CX加入手牌（拿1丟1），輸了也有收穫，適合放前列。</p></section>
+<section><h2>BTR/W107-T16　主唱吉他手 喜多郁代 <small>ギターボーカル 喜多郁代</small> ×2</h2>
+<p>紅｜角色｜Lv1｜費用0｜攻擊5500｜魂傷1｜特徵：音樂(音楽)、人氣者(人気者)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td colspan="3">（無效果，純數值）</td></tr></table>
+<p class="note">白話：沒有效果的角色，但是Lv1、費用0就有5500。搭配後列的「樂團女子？ 後藤一里」，會變成6500、魂傷2。</p></section>
+<section><h2>BTR/W107-T17　高人氣 喜多郁代 <small>人気者 喜多郁代</small> ×2</h2>
+<p>紅｜角色｜Lv1｜費用1｜攻擊5500｜魂傷1｜特徵：音樂(音楽)、人氣者(人気者)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】他のあなたのキャラが3枚以上なら、このカードのパワーを＋2000。</td><td>【永】其他的你的角色存在3張以上的話，此卡的攻擊力+2000。</td><td><pre>{
+ "kind": "continuous",
+ "condition": {
+  "kind": "countAtLeast",
+  "selector": {
+   "zone": "stage",
+   "side": "self",
+   "filter": {
+    "excludeSource": true
+   },
+   "count": "all"
+  },
+  "n": 3
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": 2000,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr><tr><td>【自】アンコール［手札のキャラを1枚控え室に置く］（このカードが舞台から控え室に置かれた時、あなたはコストを払ってよい。そうしたら、このカードを【横】にして元の枠に戻す）</td><td>【自】安可［手牌的角色1張放到休息室］(此卡從舞台被放到休息室時，你可以支付代價。支付代價的話，你將此卡【橫置】放回原位)</td><td><pre>{
+ "kind": "auto",
+ "keyword": {
+  "id": "encore"
+ },
+ "trigger": {
+  "event": "sourceLeavesStageToWaitingRoom"
+ },
+ "optional": true,
+ "cost": [
+  {
+   "kind": "discard",
+   "selector": {
+    "zone": "hand",
+    "side": "self",
+    "filter": {
+     "type": "character"
+    },
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "returnSourceToSlot",
+   "state": "rest"
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：場上有其他3張以上的角色時，她是7500。自帶安可：被打倒時丟1張手牌角色，就能以橫置狀態回到原本的格子。</p></section>
+<section><h2>BTR/W107-T18　喜多郁代 <small>喜多郁代</small> ×2</h2>
+<p>紅｜角色｜Lv2｜費用2｜攻擊7000｜魂傷2｜判定：soul｜特徵：音樂(音楽)、人氣者(人気者)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】他のあなたのキャラが3枚以上なら、このカードのパワーを＋3000。</td><td>【永】其他的你的角色存在3張以上的話，此卡的攻擊力+3000。</td><td><pre>{
+ "kind": "continuous",
+ "condition": {
+  "kind": "countAtLeast",
+  "selector": {
+   "zone": "stage",
+   "side": "self",
+   "filter": {
+    "excludeSource": true
+   },
+   "count": "all"
+  },
+  "n": 3
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": 3000,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr><tr><td>【自】アンコール［手札の《音楽》のキャラを1枚控え室に置く］（このカードが舞台から控え室に置かれた時、あなたはコストを払ってよい。そうしたら、このカードを【横】にして元の枠に戻す）</td><td>【自】安可［手牌的《音樂》的角色1張放到休息室］(此卡從舞台被放到休息室時，你可以支付代價。支付代價的話，你將此卡【橫置】放回原位)</td><td><pre>{
+ "kind": "auto",
+ "keyword": {
+  "id": "encore"
+ },
+ "trigger": {
+  "event": "sourceLeavesStageToWaitingRoom"
+ },
+ "optional": true,
+ "cost": [
+  {
+   "kind": "discard",
+   "selector": {
+    "zone": "hand",
+    "side": "self",
+    "filter": {
+     "trait": "音楽"
+    },
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "returnSourceToSlot",
+   "state": "rest"
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：場上有其他3張以上的角色時，她是10000，而且魂傷2。自帶安可：被打倒時丟1張手牌的《音樂》角色，就能回到原本的格子。</p></section>
+<section><h2>BTR/W107-T19　新的綽號 後藤一里 <small>新しいあだ名 後藤ひとり</small> ×2</h2>
+<p>紅｜角色｜Lv3｜費用2｜攻擊10000｜魂傷2｜判定：soul｜特徵：音樂(音楽)</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードが手札から舞台に置かれた時、あなたは自分のクロックの上から1枚を、控え室に置いてよい。</td><td>【自】此卡從手牌被放置到舞台時，你可以將自己的傷害區上方1張，放到休息室。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "optional": true,
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "clock",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    },
+    "position": "top"
+   },
+   "to": {
+    "zone": "waitingRoom",
+    "side": "self"
+   }
+  }
+ ]
+}</pre></td></tr><tr><td>【自】［①］このカードがアタックした時、あなたはコストを払ってよい。そうしたら、あなたは相手の控え室のカードを1枚選び、山札の上に置く。</td><td>【自】［①］此卡攻擊時，你可以支付代價。支付代價的話，你選擇對手休息室的卡片1張，放到牌組上方。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "attacks"
+ },
+ "optional": true,
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 1
+  }
+ ],
+ "effects": [
+  {
+   "op": "putCardOnDeckTop",
+   "from": {
+    "zone": "waitingRoom",
+    "side": "opponent",
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：登場時回1血（傷害區1張進休息室）。攻擊時付1能量：從對手休息室選1張卡，放到對手牌組最上面。（卡面沒有限制種類；建議選非CX的卡，這樣傷害翻的第1張就不會是CX，傷害比較不容易被取消。）</p></section>
+<section><h2>BTR/W107-T20　史上最糟的藝人照 <small>史上最低のアー写</small> ×2</h2>
+<p>紅｜名場面｜判定：soul+soul</p>
+<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】あなたのキャラすべてに、ソウルを＋2。</td><td>【永】你的角色全部，魂傷+2。</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifySoul",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 2,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr></table>
+<p class="note">白話：沒有連動角色，效果是全隊魂傷+2。紅色CX，不會觸發「樂團的領導者 伊地知虹夏」。判定翻到時，這次攻擊魂傷+2。</p></section></html>
