@@ -17,7 +17,8 @@ describe('Girls Band Cry GCR/SE48', () => {
     const [got] = top(s, 0, [C('T11')]);
     s = passUntil(s, 'climax');
     s = ok(s, { type: 'playClimax', player: 0, uid: cx });
-    expect(s.pending).toMatchObject({ kind: 'acknowledge', player: 1 });
+    expect(s.pending).toMatchObject({ kind: 'acknowledge', player: 0, cards: [got], button: '加到手牌' }); // 翻到牌組旁邊給自己看，對手不用按
+    expect(s.players[0].resolution).toEqual([got]);
     s = ack(s);
     s = choose(s, [junk]); // 拿 1 丟 1
     expect(s.players[0].hand).toEqual([got]);
@@ -27,10 +28,40 @@ describe('Girls Band Cry GCR/SE48', () => {
     put(s, 0, C('T13'), 'stock');
     top(s, 0, [C('T17'), C('T18'), C('T11'), C('T03'), C('T03')]);
     s = ok(s, { type: 'activate', player: 0, uid: src, index: 1 });
-    s = yes(s);
+    expect(s.pending).toMatchObject({ kind: 'acknowledge', player: 0, button: '抽 2 張' });
     s = yes(s);
     expect(s.players[0].hand).toHaveLength(2);
     expect(s.players[0].stage[3]!.state).toBe('rest');
+  });
+
+  it('集中沒有翻到名場面：顯示「放到休息室」，不抽牌', () => {
+    let s = sc();
+    const src = put(s, 0, C('T01'), { slot: 3 });
+    put(s, 0, C('T13'), 'stock');
+    const flipped = top(s, 0, [C('T11'), C('T03'), C('T03'), C('T04'), C('T05')]);
+    s = ok(s, { type: 'activate', player: 0, uid: src, index: 1 });
+    expect(s.pending).toMatchObject({ kind: 'acknowledge', player: 0, cards: flipped, button: '放到休息室' });
+    s = yes(s);
+    expect(s.players[0].hand).toHaveLength(0);
+    expect(s.players[0].waiting).toEqual(expect.arrayContaining(flipped));
+    expect(s.pending).toMatchObject({ kind: 'main', player: 0 });
+  });
+
+  it('傷害翻到牌組最後 1 張：先重洗、受重洗懲罰，再繼續翻剩下的傷害〔9.2〕', () => {
+    let s = sc();
+    put(s, 0, C('T11'), { slot: 0 });
+    top(s, 0, [C('T02')]); // 判定沒有圖示
+    const p1 = s.players[1];
+    const last = put(s, 1, BTR('T16'), 'deck');
+    const refill = [BTR('T16'), BTR('T15'), BTR('T15')].map((id) => put(s, 1, id, 'waiting'));
+    p1.memory.push(...p1.deck.filter((u) => u !== last)); // 牌組只剩 1 張
+    p1.deck = [last];
+    s = passUntil(s, 'attackDeclare');
+    s = ok(s, { type: 'attack', player: 0, slot: 0, mode: 'direct' }); // 魂傷 2
+    expect(s.players[1].clock).toHaveLength(3); // 重洗懲罰 1＋傷害 2
+    expect(s.players[1].clock[1]).toBe(last); // 懲罰先放，接著才是翻開的傷害
+    expect(refill).toContain(s.players[1].clock[0]);
+    expect(s.players[1].deck.length + s.players[1].hand.length).toBe(1); // 攻擊後換對手回合，剩下的 1 張被抽走
   });
 
   it('T02 告白 仁菜：「告白 桃香」+1500 並給予安可（丟手牌角色）；絆：撿回「告白 桃香」', () => {
@@ -312,6 +343,8 @@ describe('Girls Band Cry GCR/SE48', () => {
     top(s, 1, [BTR('T16'), BTR('T16'), BTR('T15'), BTR('T15'), BTR('T15')]);
     s = passUntil(s, 'attackDeclare');
     s = ok(s, { type: 'attack', player: 0, slot: 0, mode: 'direct' });
+    s = yes(s);
+    expect(s.pending).toMatchObject({ kind: 'acknowledge', player: 0, button: '給對手 2 點傷害' });
     s = yes(s);
     expect(s.players[0].hand).toHaveLength(0);
     expect(s.players[1].clock).toHaveLength(2 + 3); // 效果 2 點＋直接攻擊魂傷 3

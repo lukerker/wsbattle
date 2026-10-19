@@ -125,7 +125,7 @@ export type Pending =
   | { kind: 'levelUp'; player: PlayerId; options: string[] }
   | { kind: 'encoreChoose'; player: PlayerId; options: string[] }
   | { kind: 'select'; player: PlayerId; prompt: string; options: string[]; min: number; max: number; shown?: string[] } // shown：一起顯示的卡（例如看牌組上方 N 張時，全部翻開的牌）
-  | { kind: 'acknowledge'; player: PlayerId; prompt: string; cards: string[] } // 對手公開的卡：看過按確認
+  | { kind: 'acknowledge'; player: PlayerId; prompt: string; cards: string[]; button?: string } // 公開的卡：看過按確認（button：按鈕文字）
   | { kind: 'confirm'; player: PlayerId; prompt: string }
   | { kind: 'chooseSlot'; player: PlayerId; prompt: string; slots: Slot[]; owner?: PlayerId } // owner：格子是誰的舞台（沒給＝選擇的人自己）
   | { kind: 'orderAbility'; player: PlayerId; options: { id: number; uid: string; text: string }[]; canSkip: boolean } // canSkip：全部都是可以不發動的能力
@@ -170,7 +170,8 @@ export type GameEvent =
   | { t: 'gameOver'; winner: PlayerId | 'draw' }
   | { t: 'ability'; uid: string; cardId: string; text: string } // 能力開始解決
   | { t: 'reveal'; uid: string; cardId: string } // 公開
-  | { t: 'notice'; text: string }; // 例：尚未實作的卡片效果
+  | { t: 'notice'; text: string } // 例：尚未實作的卡片效果
+  | { t: 'log'; p: PlayerId; text: string }; // 給對戰紀錄的說明（只含公開資訊）
 
 export interface GameState {
   rng: number; // 亂數狀態（固定種子，可重播）

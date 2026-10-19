@@ -84,8 +84,8 @@ export const cards: Card[] = [
         keyword: { id: 'concentrate' },
         cost: [{ kind: 'stock', n: 1 }, { kind: 'restSource' }],
         effects: [
-          { op: 'moveCards', from: { zone: 'deck', side: 'self', count: { exactly: 5 }, fromTop: 5, chooser: 'self' }, to: toWaitingRoom, bind: 'milled' },
-          { op: 'draw', upTo: { countOfBound: 'milled', filter: { type: 'climax' } } },
+          { op: 'revealMill', n: 5, bind: 'milled', result: 'draw' },
+          { op: 'drawCards', n: { countOfBound: 'milled', filter: { type: 'climax' } } },
         ],
         text: t('【起】集中［① このカードを【横】する］あなたは自分の山札の上から5枚をめくり、控え室に置く。それらのカードのクライマックス1枚につき、あなたは1枚まで引く。',
           '【起】集中［① 將此卡【橫置】］你從自己的牌組上方翻5張，放到休息室。那些卡片中每有1張名場面，你抽最多1張牌。'),
@@ -164,10 +164,7 @@ export const cards: Card[] = [
         kind: 'auto', trigger: { event: 'usedBackup' },
         effects: [{
           op: 'revealTopCheck', filter: { type: 'character', trait: '音楽' },
-          ifMatch: [
-            { op: 'moveCards', from: { zone: 'deck', side: 'self', count: { exactly: 1 }, fromTop: 1 }, to: toHand },
-            { op: 'moveCards', from: handDiscard(), to: toWaitingRoom },
-          ],
+          ifMatch: [{ op: 'moveCards', from: handDiscard(), to: toWaitingRoom }],
         }],
         text: t('【自】あなたがこのカードの「助太刀」を使った時、あなたは自分の山札の上から1枚を公開する。その公開したカードが《音楽》のキャラなら手札に加え、あなたは自分の手札を1枚選び、控え室に置く。（そうでないなら元に戻す）',
           '【自】當你使用此卡的『助太刀』時，你將自己的牌組上方1張公開。那張卡片是《音樂》的角色的話加到手牌，你選擇自己的手牌1張，放到休息室。(如果不是的話放回原位)'),

@@ -115,6 +115,8 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       const uid = pl.deck[0]!;
       move(ctx, uid, p, 'deck', 'resolution');
       revealed.push(uid);
+      // 牌組翻到 0 張：立刻重洗並受重洗懲罰（插入型規則處理〔9.2〕），翻開的卡還在解決領域，不會洗回去
+      refreshIfNeeded(ctx, p);
       if (cardOf(s, uid).type === 'climax') {
         for (const u of revealed) move(ctx, u, p, 'resolution', 'waiting');
         ctx.ev.push({ t: 'damageCancel', p });
@@ -644,6 +646,8 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     const { s } = ctx;
     ruleCheck(ctx);
     if (s.winner !== null || s.pending) return false;
+    // 重洗〔9.2〕：牌組是 0 張就重洗（保險：正常情況下卡離開牌組的地方都已經處理）
+    for (const p of [s.turnPlayer, other(s.turnPlayer)]) refreshIfNeeded(ctx, p);
     // 升級是規則處理〔9.3〕：不管卡是怎麼進傷害區的（傷害、效果直接放入、重洗懲罰），檢查時點都要處理
     for (const p of [s.turnPlayer, other(s.turnPlayer)]) {
       if (s.players[p].clock.length >= 7) {

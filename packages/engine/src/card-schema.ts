@@ -101,7 +101,7 @@ export type Effect =
       bind?: string; // 把移動的卡綁成名稱，供後續步驟使用
     }
   | { op: 'draw'; upTo: Amount } // 最多抽 N 張（每張都問）
-  | { op: 'drawCards'; n: number } // 抽 N 張（一定要抽）
+  | { op: 'drawCards'; n: Amount } // 抽 N 張（一定要抽）
   | {
       // 看牌組上方 N 張，選符合條件的至多 M 張（公開）加入手牌，其餘放休息室
       op: 'lookTopPick';
@@ -112,7 +112,8 @@ export type Effect =
       then?: Effect[]; // 有加入手牌時才執行
     }
   | { op: 'searchDeck'; filter: CardFilter; upTo: number; reveal: true; shuffle: boolean }
-  | { op: 'revealTopCheck'; filter: CardFilter; ifMatch: Effect[] } // 公開牌組上方1張，符合條件時執行，否則放回
+  | { op: 'revealTopCheck'; filter: CardFilter; ifMatch: Effect[] } // 公開牌組上方1張（翻到牌組旁邊給玩家看）：符合條件就加到手牌並執行 ifMatch，否則放回原位
+  | { op: 'revealMill'; n: number; bind: string; result: 'draw' | 'damage' } // 把牌組上方 N 張翻開給玩家看，再放到休息室（集中、翻牌造成傷害）；result 決定提示文字
   | { op: 'returnSourceToHand' }
   | { op: 'returnSourceToSlot'; state: 'rest' } // 安可：橫置放回原位
   | { op: 'putCardOnDeckTop'; from: Selector }

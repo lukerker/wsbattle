@@ -41,9 +41,10 @@ describe('孤獨搖滾 BTR/W107', () => {
     put(s, 0, C('T03'), 'stock');
     top(s, 0, [C('T11'), C('T12'), C('T16'), C('T15'), C('T15')]);
     s = ok(s, { type: 'activate', player: 0, uid: src, index: 1 });
+    expect(s.pending).toMatchObject({ kind: 'acknowledge', player: 0, button: '抽 2 張' }); // 翻開的 5 張給自己看
+    expect(s.players[0].resolution).toHaveLength(5);
+    s = yes(s);
     expect(s.players[0].waiting).toHaveLength(6); // 能量 1＋翻開的 5 張
-    s = yes(s);
-    s = yes(s);
     expect(s.players[0].hand).toHaveLength(2);
     expect(s.players[0].stage[3]!.state).toBe('rest');
   });

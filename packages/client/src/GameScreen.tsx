@@ -4,6 +4,7 @@ import { applyStep, groupEvents, originsOf, playAttack, useFlip } from './anim.t
 import { Board, type ZoneMode } from './Board.tsx';
 import { Abilities, BACK_URL, CardFace, CardImg, CardInfo, cardMeta } from './CardFace.tsx';
 import { PHASES, SLOT_NAME, cardById, seriesInfo } from './meta.ts';
+import { buildLog, type LogEntry } from './log.ts';
 import { net, useNet } from './net.ts';
 
 // 連線對戰畫面：永遠用自己的座位視角；觀戰者看座位 0 的視角，只看得到公開資訊。
@@ -31,6 +32,8 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
   const [zoneView, setZoneView] = useState<ZoneView>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const [logOpen, setLogOpen] = useState(false); // 窄螢幕：對戰紀錄用彈窗看
   const rootRef = useRef<HTMLDivElement>(null);
   const origins = useRef(new Map<string, { key: string; flip: boolean }>());
   const csRef = useRef<ClientState | null>(null);
@@ -60,6 +63,8 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
           let display = prev.view;
           for (const step of groupEvents(events)) {
             display = applyStep(display, step.events, known);
+            const entries = buildLog(step.events, state.view);
+            if (entries.length) setLog((l) => [...l, ...entries].slice(-80));
             for (const [uid, o] of originsOf(step.events)) origins.current.set(uid, o);
             setAnim({ display, banner: step.turnStart ?? null });
             const atk = step.attack;
@@ -264,6 +269,7 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
         {!anim && passAction() && (
           <button className="btn primary top-pass" onClick={() => act(passAction()!)}>{passLabel[mine!.kind]}</button>
         )}
+        <button className="btn ghost log-btn" onClick={() => setLogOpen(true)}>紀錄</button>
         <button className="btn ghost leave-btn" onClick={onLeaveClick}>{spectating ? '離開觀戰' : '離開'}</button>
       </header>
       <div className={`hint${iRespond ? ' responding' : ''}`}>
@@ -316,8 +322,9 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
               </div>
             )}
             {/* 場地右側：上面對手的名牌；下面自己的名牌，名牌上方是階段按鈕（兩者保持固定間距，名牌長高也不會蓋到按鈕） */}
-            <div className="side-col opp">{plate(opp, 'opp')}</div>
-            <div className="side-col me">
+            <div className="side-col">
+              {plate(opp, 'opp')}
+              <GameLog entries={log} />
               {!anim && passAction() && (
                 <button className="btn primary side-pass" onClick={() => act(passAction()!)}>{passLabel[mine!.kind]}</button>
               )}
@@ -350,6 +357,18 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
           </div>
         </section>
       </div>
+
+      {logOpen && (
+        <div className="modal" onClick={() => setLogOpen(false)}>
+          <div className="dialog log-dialog" onClick={(e) => e.stopPropagation()}>
+            <header>
+              <h3>對戰紀錄</h3>
+              <button className="btn" onClick={() => setLogOpen(false)}>關閉</button>
+            </header>
+            <GameLog entries={log} />
+          </div>
+        </div>
+      )}
 
       {zoneView && <ZoneDialog view={zoneView} cardOf={cardOfUid} onClose={() => setZoneView(null)} />}
 
@@ -390,6 +409,28 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
       {toast && <div className="toast">{toast}</div>}
     </div>
   );
+
+  // 對戰紀錄：雙方做了什麼、發動了什麼效果（新的在最下面，自動捲到底）
+  function GameLog({ entries }: { entries: LogEntry[] }) {
+    const ref = useRef<HTMLOListElement>(null);
+    useEffect(() => {
+      if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+    }, [entries.length]);
+    return (
+      <div className="game-log">
+        <b className="log-title">對戰紀錄</b>
+        <ol ref={ref}>
+          {entries.length === 0 && <li className="muted">雙方的動作和發動的效果會顯示在這裡。</li>}
+          {entries.map((e) => (
+            <li key={e.id} className={e.turn ? 'turn' : ''} style={e.p !== null ? { ['--pc' as string]: accentOf(e.p) } : undefined}>
+              {e.p !== null && !e.turn && <span className="who">{e.p === seat && !spectating ? '你' : nm(e.p)}</span>}
+              {e.turn && e.p !== null ? `${nm(e.p)}・${e.text}` : e.text}
+            </li>
+          ))}
+        </ol>
+      </div>
+    );
+  }
 
   // 選取自己的卡時，預覽面板下方的操作按鈕
   function CardActions({ src }: { src: Source }) {
@@ -494,7 +535,7 @@ function PromptSheet({ pending: p, view, seat, act, name, cardOf: cardLookup }: 
     }
     case 'acknowledge':
       body = cards([], 0, p.cards);
-      buttons = <button className="btn primary" onClick={() => act({ type: 'yesno', player, yes: true })}>確認</button>;
+      buttons = <button className="btn primary" onClick={() => act({ type: 'yesno', player, yes: true })}>{p.button ?? '確認'}</button>;
       break;
     case 'levelUp':
     case 'encoreChoose':

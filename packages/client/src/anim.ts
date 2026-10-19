@@ -76,7 +76,16 @@ export function groupEvents(events: GameEvent[]): AnimStep[] {
     steps.push({ events: cur, ms: visible ? MOVE_MS : 0 });
     cur = [];
   };
+  let lastReveal = false; // 連續翻開好幾張（集中、翻 7 張）：第 1 張之後翻快一點
   for (const e of events) {
+    const reveal = e.t === 'move' && e.from.zone === 'deck' && e.to.zone === 'resolution';
+    if (!reveal && e.t !== 'reveal') lastReveal = false;
+    if (reveal) {
+      flush();
+      steps.push({ events: [e], ms: lastReveal ? 360 : REVEAL_MS });
+      lastReveal = true;
+      continue;
+    }
     if (e.t === 'phase' && e.phase === 'stand') {
       flush();
       steps.push({ events: [e], ms: 1100, turnStart: e.player });

@@ -50,8 +50,8 @@ const concentrate = (ja: string, zh: string): Ability => ({
   keyword: { id: 'concentrate' },
   cost: [{ kind: 'stock', n: 1 }, { kind: 'restSource' }],
   effects: [
-    { op: 'moveCards', from: { zone: 'deck', side: 'self', count: { exactly: 5 }, fromTop: 5 }, to: toWaitingRoom, bind: 'milled' },
-    { op: 'draw', upTo: { countOfBound: 'milled', filter: { type: 'climax' } } },
+    { op: 'revealMill', n: 5, bind: 'milled', result: 'draw' },
+    { op: 'drawCards', n: { countOfBound: 'milled', filter: { type: 'climax' } } },
   ],
   text: t(ja, zh),
 });

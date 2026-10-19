@@ -24,10 +24,7 @@ const TRAITS = [TRAIT_MUSIC, TRAIT_TOGE];
 // 「公開牌組上方 1 張，符合就加到手牌，再丟 1 張手牌（不符合就放回原位）」
 const revealTake = (filter: CardFilter) => ({
   op: 'revealTopCheck' as const, filter,
-  ifMatch: [
-    { op: 'moveCards' as const, from: deckTop(1), to: toHand },
-    { op: 'moveCards' as const, from: handDiscard(), to: toWaitingRoom },
-  ],
+  ifMatch: [{ op: 'moveCards' as const, from: handDiscard(), to: toWaitingRoom }],
 });
 
 const climaxEffect = (soulOnly: boolean): Ability => soulOnly
@@ -68,8 +65,8 @@ export const cards: Card[] = [
         kind: 'activated', keyword: { id: 'concentrate' },
         cost: [{ kind: 'stock', n: 1 }, { kind: 'restSource' }],
         effects: [
-          { op: 'moveCards', from: deckTop(5), to: toWaitingRoom, bind: 'milled' },
-          { op: 'draw', upTo: { countOfBound: 'milled', filter: { type: 'climax' } } },
+          { op: 'revealMill', n: 5, bind: 'milled', result: 'draw' },
+          { op: 'drawCards', n: { countOfBound: 'milled', filter: { type: 'climax' } } },
         ],
         text: t('【起】集中［① このカードを【横】する］あなたは自分の山札の上から5枚をめくり、控え室に置く。それらのカードのCX1枚につき、あなたは1枚まで引く。',
           '【起】集中［① 將此卡【橫置】］你從自己的牌組上方翻5張，放到休息室。那些卡片中每有1張名場面，你抽最多1張牌。'),
@@ -377,12 +374,11 @@ export const cards: Card[] = [
         kind: 'auto', trigger: { event: 'attacks' }, optional: true,
         cost: [{ kind: 'discard', selector: handDiscard(undefined, 2) }],
         effects: [
-          { op: 'moveCards', from: deckTop(7), to: toWaitingRoom, bind: 'milled' },
+          { op: 'revealMill', n: 7, bind: 'milled', result: 'damage' },
           { op: 'dealDamage', amount: { countOfBound: 'milled', filter: { type: 'climax' } }, cancelable: true },
         ],
         text: t('【自】［手札を2枚控え室に置く］このカードがアタックした時、あなたはコストを払ってよい。そうしたら、あなたは自分の山札の上から7枚を、控え室に置き、相手にXダメージを与える。Xはそれらのカードのクライマックスの枚数に等しい。（ダメージキャンセルは発生する）',
           '【自】［手牌2張放到休息室］此卡攻擊時，你可以支付代價。支付代價的話，你將自己的牌組上方7張，放到休息室，給對手X點傷害。X等於那些卡片中的名場面張數。(會發生傷害取消)'),
-        review: ['牌組不到 7 張時：目前是把剩下的全部放到休息室（中途重洗，再從新牌組繼續放滿 7 張的處理還沒做）。'],
       },
     ],
     note: '登場：看X張（X＝場上《音樂》角色數量，最多5），選1張加入手牌。攻擊時丟2張手牌：翻7張，每張名場面算1點傷害，一次打出去。對手還是可以取消，適合終盤收尾。注意：一次翻7張，牌組消耗很快。牌組用完要洗牌，而且你自己要受1點傷害。',

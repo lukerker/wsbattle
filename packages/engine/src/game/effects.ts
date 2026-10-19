@@ -548,16 +548,68 @@ export function createEffects(core: Core) {
         return 'done';
       }
       case 'revealTopCheck': {
-        // 公開牌組最上面 1 張：雙方都看得到，對手按確認
+        // 公開牌組最上面 1 張：翻到牌組旁邊（解決領域），雙方都看得到；
+        // 發動的玩家看到結果（加到手牌／放回原位）按確認，對手從動畫和對戰紀錄得知，不用等對手按
         if (!('top' in f.tmp)) {
+          core.refreshIfNeeded(ctx, f.controller);
           const top = me.deck[0];
           if (!top) return 'done';
+          core.move(ctx, top, f.controller, 'deck', 'resolution');
           ctx.ev.push({ t: 'reveal', uid: top, cardId: s.cards[top]!.cardId });
           f.tmp.top = top;
+          const match = filterOk(s, top, e.filter, f.src);
+          ctx.ev.push({ t: 'log', p: f.controller, text: `「${f.label}」公開牌組上方的「${cardOf(s, top).name.zh}」→ ${match ? '加到手牌' : '放回牌組上方'}` });
         }
         const top = f.tmp.top as string;
-        if (!showOpponent(ctx, f, [top], '公開')) return 'wait';
-        return filterOk(s, top, e.filter, f.src) ? [sub(f, e.ifMatch)] : 'done';
+        const match = filterOk(s, top, e.filter, f.src);
+        const name = cardOf(s, top).name.zh;
+        const ok = ask(ctx, f, 'ack', {
+          kind: 'acknowledge', player: f.controller, cards: [top], button: match ? '加到手牌' : '放回牌組上方',
+          prompt: `${f.label}：公開了牌組上方的「${name}」。${match ? '符合條件，加到手牌' : '不符合條件，放回牌組最上面'}`,
+        });
+        if (ok === undefined) return 'wait';
+        if (!me.resolution.includes(top)) return 'done';
+        if (!match) {
+          core.move(ctx, top, f.controller, 'resolution', 'deck', { deckTop: true });
+          return 'done';
+        }
+        core.move(ctx, top, f.controller, 'resolution', 'hand');
+        return e.ifMatch.length ? [sub(f, e.ifMatch)] : 'done';
+      }
+      case 'revealMill': {
+        // 牌組上方 N 張一張一張翻到解決領域（牌組用完就先重洗），給發動的玩家看結果，按下按鈕後放到休息室
+        if (!f.tmp.milled) {
+          const milled: string[] = [];
+          for (let i = 0; i < e.n; i++) {
+            core.refreshIfNeeded(ctx, f.controller);
+            const u = me.deck[0];
+            if (!u) break;
+            core.move(ctx, u, f.controller, 'deck', 'resolution');
+            milled.push(u);
+          }
+          f.tmp.milled = milled;
+          f.binds[e.bind] = milled;
+          const x = milled.filter((u) => cardOf(s, u).type === 'climax').length;
+          ctx.ev.push({
+            t: 'log', p: f.controller,
+            text: `「${f.label}」翻開牌組上方 ${milled.length} 張，其中 ${x} 張名場面${e.result === 'draw' ? (x ? `，抽 ${x} 張` : '，不抽牌') : (x ? `，給對手 ${x} 點傷害` : '，沒有傷害')}`,
+          });
+        }
+        const milled = f.tmp.milled as string[];
+        if (!milled.length) return 'done';
+        const x = milled.filter((u) => cardOf(s, u).type === 'climax').length;
+        const draw = e.result === 'draw';
+        const ok = ask(ctx, f, 'ack', {
+          kind: 'acknowledge', player: f.controller, cards: milled,
+          prompt: draw
+            ? (x ? `${f.label}（集中）：翻到 ${x} 張名場面，抽 ${x} 張` : `${f.label}（集中）：沒有翻到名場面，所以不抽牌`)
+            : (x ? `${f.label}：翻到 ${x} 張名場面，給對手 ${x} 點傷害` : `${f.label}：沒有翻到名場面，不造成傷害`),
+          button: draw ? (x ? `抽 ${x} 張` : '放到休息室') : (x ? `給對手 ${x} 點傷害` : '放到休息室'),
+        });
+        if (ok === undefined) return 'wait';
+        for (const u of milled) if (me.resolution.includes(u)) core.move(ctx, u, f.controller, 'resolution', 'waiting');
+        core.refreshIfNeeded(ctx, f.controller);
+        return 'done';
       }
       case 'returnSourceToHand':
         if (onStage(s, f.src)) moveTo(ctx, f.src, 'hand');
@@ -580,9 +632,11 @@ export function createEffects(core: Core) {
         const n = amountOf(s, e.amount, f.src, f.controller, f.binds);
         return n > 0 ? [{ k: 'damage', p: other(f.controller), n }] : 'done';
       }
-      case 'drawCards':
-        for (let i = 0; i < e.n; i++) core.drawOne(ctx, f.controller);
+      case 'drawCards': {
+        const n = amountOf(s, e.n, f.src, f.controller, f.binds);
+        for (let i = 0; i < n; i++) core.drawOne(ctx, f.controller);
         return 'done';
+      }
       case 'moveSourceToSlot': {
         const from = me.stage.findIndex((c) => c?.uid === f.src);
         if (from < 0) return 'done';
