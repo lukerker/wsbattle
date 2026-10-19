@@ -1,16 +1,29 @@
-// 畫面用的資料：引擎實例、兩副預組、系列主題色、階段名稱與提示。
-import { bdW125, btrW107, createEngine, type Card, type Phase, type PlayerId } from '@ws/engine';
+// 畫面用的資料：卡片資料庫、系列主題色、系統預組、階段名稱與提示。
+import { bdW125, btrW107, type Card, type Phase } from '@ws/engine';
 
 export const cardById = new Map<string, Card>([...btrW107.cards, ...bdW125.cards].map((c) => [c.id, c]));
-export const engine = createEngine(cardById);
 
 const list = (d: { cardId: string; count: number }[]) => d.flatMap((x) => Array<string>(x.count).fill(x.cardId));
 
-// 玩家 1＝孤獨搖滾、玩家 2＝Ave Mujica（之後改成建房時選牌組）
-export const PLAYERS: Record<PlayerId, { label: string; series: string; accent: string; deck: string[] }> = {
-  0: { label: '玩家 1', series: '孤獨搖滾', accent: '#e0587f', deck: list(btrW107.deck) },
-  1: { label: '玩家 2', series: 'Ave Mujica', accent: '#c23a52', deck: list(bdW125.deck) },
+// 系列：代碼是卡號的第一段（BTR/W107-T01 → BTR）
+export const SERIES: Record<string, { label: string; accent: string }> = {
+  BTR: { label: '孤獨搖滾', accent: '#e0587f' },
+  BD: { label: 'Ave Mujica', accent: '#c23a52' },
 };
+export const seriesInfo = (code: string) => SERIES[code] ?? { label: code, accent: '#8f99ad' };
+
+export interface DeckInfo {
+  id: string;
+  name: string;
+  series: string;
+  cards: string[]; // 50 張的卡號
+  preset: boolean; // 系統預組
+}
+
+export const PRESET_DECKS: DeckInfo[] = [
+  { id: 'preset-BTR-W107', name: '孤獨搖滾 預組', series: 'BTR', cards: list(btrW107.deck), preset: true },
+  { id: 'preset-BD-W125', name: 'Ave Mujica 預組', series: 'BD', cards: list(bdW125.deck), preset: true },
+];
 
 export const PHASES: { id: Phase; name: string; hint: string }[] = [
   { id: 'stand', name: '起立', hint: '把橫置的角色全部直立起來（自動）。' },

@@ -20,7 +20,7 @@
 - 真人對真人，同時在線，私人房間，建房時產生 6 位數字代碼加入
 - 觀戰：用同一組代碼進入，只看公開資訊（看不到任何一方手牌），人數上限暫定 6～8 人
 - 建房時設定：時間限制（不限時為預設、整場 35 分鐘、每次操作限時）、觀戰開關與人數上限
-- 帳號：簡易登入註冊，牌組存雲端
+- 帳號：Email 註冊登入與 Google 登入（Firebase Auth），玩家自己取顯示名稱；牌組存雲端
 - 牌組：玩家自組，另有各系列固定預組（50 張）
 - 不做：公開大廳、配對、排名、異步對戰、電腦對手、教學模式、內建語音、效果日誌
 - 視覺：深色專業介面，場地照官方場地圖配置（`cards/ws battle ground.jpg`）並用灰藍桌墊質感；牌堆用真牌背（`cards/card back.png`）並顯示厚度；每個系列一個主題色點綴
@@ -36,12 +36,14 @@ BanG Dream（MyGO × Ave Mujica 彈）、Girls Band Cry、莉可麗絲、鏈鋸�
 
 ## 技術架構
 
-- TypeScript monorepo：`engine`（規則引擎）、`functions`（Firebase 雲端函式）、`client`（React + Vite）
-- Firebase：Auth（登入）、Firestore（盤面、各人手牌、牌組、房間）、Cloud Functions（執行引擎）、Realtime Database（只做上線與離線偵測）
-- 規則由伺服器判定，客戶端只送出操作
-- 手牌、牌庫只存在伺服器端，傳給每位玩家前先過濾；觀戰者只拿公開版本
-- 雲端函式需要 Blaze 方案，要設預算警報
-- 引擎不綁任何平台；之後若要換成 WebSocket 伺服器（例如 Cloud Run），引擎不用改
+- TypeScript monorepo：`engine`（規則引擎＋房間與大廳邏輯）、`server`（WebSocket 對戰伺服器，部署在 Render）、`client`（React + Vite）
+- **對戰不放在 Firebase 逐步讀寫**（會很快用完免費額度，雲端函式冷啟動也會讓操作變慢）：房間狀態在伺服器記憶體，伺服器收操作 → 呼叫引擎 → 依每個人的權限過濾 → 廣播
+- Firebase 只用免費方案，只負責登入（Auth：Email、Google）；之後加牌組儲存（Firestore）。不需要 Blaze、不需要信用卡
+- 伺服器用 Firebase 公開金鑰驗證登入 token，只需要專案 ID（`FIREBASE_PROJECT_ID`）；沒設定時開放「測試登入」（只填名字，每個分頁是一個玩家）供開發用
+- 規則由伺服器判定，客戶端只送出操作；手牌、牌庫只存在伺服器端，傳給每位玩家前先過濾（`viewFor`）；觀戰者只拿公開版本
+- 引擎不綁任何平台：`packages/engine/src/session/` 是不碰網路的房間邏輯（`GameRoom`、`RoomManager`），伺服器和測試共用；訊息格式在 `protocol.ts`
+- Render 免費方案閒置 15 分鐘休眠、喚醒約 1 分鐘：前端進網頁先打 `/health` 喚醒，連線中每 25 秒 ping。休眠或重啟會丟掉記憶體裡的房間；之後要存「種子＋雙方牌組＋所有操作」到 Firestore 還原
+- 設定與部署步驟見 `docs/部署與設定.md`
 
 ## 規則引擎原則
 
@@ -100,12 +102,12 @@ packages/client
 
 ## 待確認
 
-莉可麗絲預組各卡張數（使用者整理中）、其他 6 個系列有沒有預組、登入方式（Email 或 Google）、整場 35 分鐘到時的處理、每次操作限時的秒數、房間閒置多久作廢、Bushiroad 對數位化的立場。
+莉可麗絲預組各卡張數（使用者整理中）、其他 6 個系列有沒有預組、整場 35 分鐘到時的處理、每次操作限時的秒數、房間閒置多久作廢、Bushiroad 對數位化的立場。
 
 ## 常用指令
 
-- `npm run dev --workspace @ws/client`：啟動前端（http://localhost:5173），卡圖由開發伺服器從 `cards/` 提供
-- `npm test`：跑引擎與預組牌表測試
+- `npm run dev --workspace @ws/server`：啟動對戰伺服器（埠 8787）；`npm run dev --workspace @ws/client`：啟動前端（http://localhost:5173），卡圖由開發伺服器從 `cards/` 提供。兩個要同時開；沒設 Firebase 時是測試登入，開兩個分頁就是兩位玩家，第三個分頁可以測觀戰
+- `npm test`：跑引擎、卡片效果、房間與連線的測試
 - `npm run typecheck`：型別檢查（engine）
 - `node scripts/build-review.ts BTR-W107`：產生 `docs/review/` 的三欄核對表
 - PowerShell 5.1 的 `Set-Content/Add-Content -Encoding utf8` 會加 BOM，寫 JSON 檔要用 Write 工具或 .NET UTF8Encoding(false)
