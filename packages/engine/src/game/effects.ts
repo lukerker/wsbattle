@@ -281,6 +281,11 @@ export function createEffects(core: Core) {
     if (a.keyword?.id === 'encore' && (!s.players[w.controller].waiting.includes(w.src) || w.ctx.slot === undefined || s.players[w.controller].stage[w.ctx.slot])) return false;
     if (a.condition && !condOk(s, a.condition, w.src, w.controller, w.ctx)) return false;
     if (a.cost && !costPayable(s, a.cost, w.src, w.controller)) return false;
+    // 只有「移到前列空格」的能力：自己不在舞台上、或前列沒有空格，就沒有可以做的事，不問玩家
+    if (a.effects.length > 0 && a.effects.every((e) => e.op === 'moveSourceToSlot')) {
+      const stage = s.players[w.controller].stage;
+      if (!stage.some((c) => c?.uid === w.src) || ([0, 1, 2] as const).every((i) => stage[i])) return false;
+    }
     return true;
   }
 

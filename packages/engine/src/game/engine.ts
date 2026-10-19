@@ -632,7 +632,15 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
   function checkTiming(ctx: Ctx): boolean {
     const { s } = ctx;
     ruleCheck(ctx);
-    if (s.winner !== null || s.pending || !s.standby.length) return false;
+    if (s.winner !== null || s.pending) return false;
+    // 升級是規則處理〔9.3〕：不管卡是怎麼進傷害區的（傷害、效果直接放入、重洗懲罰），檢查時點都要處理
+    for (const p of [s.turnPlayer, other(s.turnPlayer)]) {
+      if (s.players[p].clock.length >= 7) {
+        runStep(ctx, { k: 'levelCheck', p });
+        return true;
+      }
+    }
+    if (!s.standby.length) return false;
     // 條件不符、付不起、或已經沒有意義的能力（例如另一個安可已經讓角色回場）不列出來，解決時本來就會什麼都不做
     s.standby = s.standby.filter((w) => fx.viable(s, w));
     for (const p of [s.turnPlayer, other(s.turnPlayer)]) {

@@ -177,6 +177,15 @@ describe('Ave Mujica BD/W125', () => {
     expect(s.players[1].stage[2]?.uid).toBe(u); // 移到我方前列左的正面
   });
 
+  it('T10 “Veritas”Doloris：前列沒有空格時不問要不要發動', () => {
+    let s = scene();
+    put(s, 1, C('T10'), { slot: 3 });
+    for (const [i, id] of [C('T01'), C('T02'), C('T03')].entries()) put(s, 1, id, { slot: i as 0 | 1 | 2 });
+    put(s, 0, BTR('T16'), { slot: 0 });
+    s = passUntil(s, 'attackDeclare');
+    expect(s.pending).toMatchObject({ kind: 'attackDeclare', player: 0 });
+  });
+
   it('T11 “Perdere Omnia”Timoris：其他《音樂》角色 +500；起動：付①丟 1 張、橫置，從牌組拿 1 張《音樂》角色', () => {
     let s = oppTurn(scene());
     const src = put(s, 1, C('T11'), { slot: 3 });
@@ -288,6 +297,29 @@ describe('Ave Mujica BD/W125', () => {
     s = yes(s); // 付①、丟手牌（只有 1 張）→ 1 點傷害 → 戰鬥對手進傷害區
     expect(s.players[0].clock).toContain(victim);
     expect(s.players[0].clock.length).toBe(clock + 2);
+  });
+
+  it('T16 CX 連動：傷害被取消，但戰鬥對手放進傷害區剛好 7 張 → 對手要升級', () => {
+    let s = oppTurn(scene());
+    for (const id of [C('T08'), C('T09'), C('T10')]) put(s, 1, id, 'level');
+    for (const id of [C('T01'), C('T01'), C('T01'), C('T01')]) put(s, 1, id, 'stock');
+    put(s, 1, C('T16'), { slot: 1 });
+    const victim = put(s, 0, BTR('T15'), { slot: 1 });
+    for (const id of [BTR('T03'), BTR('T04'), BTR('T05')]) put(s, 0, id, 'clock');
+    put(s, 1, C('T18'), 'climax');
+    put(s, 1, C('T11'), { slot: 3 });
+    put(s, 1, C('T12'), { slot: 0 });
+    put(s, 1, C('T05'), 'hand');
+    top(s, 1, [C('T02')]);
+    top(s, 0, [BTR('T16'), BTR('T16'), BTR('T18'), BTR('T11')]); // 魂傷 3 進傷害區（共 6 張），連動的 1 點翻到名場面 → 取消
+    s = passUntil(s, 'attackDeclare');
+    s = ok(s, { type: 'attack', player: 1, slot: 1, mode: 'front' });
+    if (s.pending?.kind === 'counter') s = ok(s, { type: 'pass', player: 0 });
+    expect(s.players[0].clock.length).toBe(6);
+    s = yes(s);
+    expect(s.players[0].clock.length).toBe(7);
+    expect(s.pending).toMatchObject({ kind: 'levelUp', player: 0 });
+    expect(s.pending?.kind === 'levelUp' && s.pending.options).toContain(victim);
   });
 
   it('T17 雙月 ~Deep Into The Forest~：不需滿足顏色條件；給予「打倒對手時看 2 張拿最多 2 張《音樂》角色」', () => {
