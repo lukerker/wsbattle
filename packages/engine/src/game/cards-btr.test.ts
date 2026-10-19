@@ -163,6 +163,7 @@ describe('孤獨搖滾 BTR/W107', () => {
     if (s.pending?.kind !== 'select') return;
     const cx = s.pending.options[0]!;
     s = choose(s, [cx]);
+    s = yes(s); // 對手確認公開的卡
     expect(ids(s, s.players[0].hand)).toEqual([E.cardOf(s, cx).id]);
     expect(E.cardOf(s, cx).type).toBe('climax');
     expect(s.players[0].waiting).toContain(ev);
@@ -224,6 +225,7 @@ describe('孤獨搖滾 BTR/W107', () => {
     s = order(s, undefined, '事件'); // 兩個能力同時待機：先解決「看 3 張找事件」
     expect(s.pending).toMatchObject({ kind: 'select', max: 1 });
     s = choose(s, [ev!]);
+    s = yes(s); // 對手確認
     s = choose(s, [keep]); // 加到手牌後要丟 1 張
     expect(s.players[0].hand).toEqual([ev]);
     expect(s.pending?.kind).toBe('confirm');
@@ -244,6 +246,7 @@ describe('孤獨搖滾 BTR/W107', () => {
     s = ok(s, { type: 'attack', player: 0, slot: 1, mode: 'front' });
     expect(s.pending).toMatchObject({ kind: 'select', options: [looked[1]] });
     s = choose(s, [looked[1]!]);
+    s = yes(s); // 對手確認
     s = choose(s, [extra]);
     expect(s.players[0].hand).toEqual([looked[1]]);
   });
@@ -275,9 +278,8 @@ describe('孤獨搖滾 BTR/W107', () => {
     top(s, 0, [C('T15')]);
     s = passUntil(s, 'attackDeclare');
     s = ok(s, { type: 'attack', player: 1, slot: 1, mode: 'front' });
-    s = passUntil(s, 'encoreChoose');
-    s = choose(s, [k]);
-    s = order(s, k);
+    // 倒置後自動放進休息室；能量不足 3 張，預設安可不列出 → 直接問卡上的安可
+    expect(s.pending).toMatchObject({ kind: 'confirm', player: 0 });
     s = yes(s); // 卡上的安可：手牌角色只有 1 張 → 自動丟
     expect(s.players[0].stage[1]).toMatchObject({ uid: k });
   });

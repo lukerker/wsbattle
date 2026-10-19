@@ -1,23 +1,40 @@
-import { useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { viewFor, type Action, type Card, type GameState, type Pending, type PlayerId, type Slot } from '@ws/engine';
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { viewFor, type Action, type AttackMode, type Card, type GameState, type GameView, type Pending, type PlayerId, type Slot } from '@ws/engine';
+import { applyStep, groupEvents, originsOf, playAttack, useFlip } from './anim.ts';
 import { Board, type ZoneMode } from './Board.tsx';
 import { Abilities, BACK_URL, CardFace, CardImg, CardInfo, cardMeta } from './CardFace.tsx';
 import { PHASES, PLAYERS, SLOT_NAME, cardById, engine } from './meta.ts';
 
-// 同一台電腦兩人輪流操作：畫面永遠用「現在要做決定的玩家」的視角，換人時先遮住手牌
+// 同一台電腦兩人輪流操作：畫面永遠用「現在要做決定的玩家」的視角，換人時先遮住手牌。
+// 每個動作的結果照引擎的事件列表一步一步播放動畫，播完才換人或讓玩家繼續操作。
 
 type Source = { from: 'hand'; uid: string } | { from: 'stage'; slot: number; uid: string };
 type ZoneView = { title: string; ids: string[]; mode: ZoneMode } | null;
 type Drag = { src: Source; x: number; y: number; over: string | null } | null;
+type Anim = { display: GameView; viewer: PlayerId; banner: PlayerId | null };
 
 const DRAG_THRESHOLD = 8;
 const dropTargetAt = (x: number, y: number) =>
   (document.elementFromPoint(x, y)?.closest('[data-drop]') as HTMLElement | null)?.dataset.drop ?? null;
+const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 
 const newGame = () => engine.newGame({ seed: (Math.random() * 2 ** 31) >>> 0, decks: [PLAYERS[0].deck, PLAYERS[1].deck] }).state;
 
+// 玩家名稱：之後接上登入就改用帳號名稱；現在先存在這台電腦
+const NAMES_KEY = 'ws-player-names';
+function loadNames(): [string, string] {
+  try {
+    const v = JSON.parse(localStorage.getItem(NAMES_KEY) ?? 'null');
+    if (Array.isArray(v) && v.length === 2) return [String(v[0]), String(v[1])];
+  } catch { /* 讀不到就用預設 */ }
+  return ['玩家 1', '玩家 2'];
+}
+
 export default function App() {
+  const [names, setNames] = useState<[string, string]>(loadNames);
+  const [started, setStarted] = useState(false);
   const [game, setGame] = useState<GameState>(newGame);
+  const [anim, setAnim] = useState<Anim | null>(null);
   const [seen, setSeen] = useState<PlayerId | null>(null); // 已經確認換人的玩家
   const [selfTest, setSelfTest] = useState(false); // 自己一個人測試：不跳換人遮罩
   const [viewed, setViewed] = useState<Card | null>(null);
@@ -26,26 +43,49 @@ export default function App() {
   const [panelOpen, setPanelOpen] = useState(() => window.innerWidth > 1000 && window.innerHeight > 520);
   const [zoneView, setZoneView] = useState<ZoneView>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const origins = useRef(new Map<string, { key: string; flip: boolean }>());
 
+  const nm = (p: PlayerId) => names[p] || `玩家 ${p + 1}`;
   const pending = game.pending;
-  const viewer: PlayerId = pending?.player ?? game.turnPlayer;
-  const view = useMemo(() => viewFor(game, viewer), [game, viewer]);
-  const legal = useMemo(() => engine.legalActions(game), [game]);
+  const liveViewer: PlayerId = pending?.player ?? game.turnPlayer;
+  const viewer = anim?.viewer ?? liveViewer;
+  const liveView = useMemo(() => viewFor(game, liveViewer), [game, liveViewer]);
+  const view = anim?.display ?? liveView;
+  const legal = useMemo(() => (anim ? [] : engine.legalActions(game)), [game, anim]);
   const me = view.players[viewer];
-  const handoff = !selfTest && game.winner === null && seen !== viewer;
+  const handoff = started && !anim && !selfTest && game.winner === null && seen !== liveViewer;
+
+  useFlip(rootRef, view, origins, `${panelOpen}`);
 
   const say = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast((t) => (t === msg ? null : t)), 2600);
   };
 
-  const act = (a: Action) => {
+  // 送出動作 → 引擎算出新狀態與事件 → 照事件一步一步播動畫
+  const act = async (a: Action) => {
+    if (anim) return;
     const r = engine.apply(game, a);
     if (r.error) return say(r.error);
-    for (const e of r.events) if (e.t === 'notice') say(e.text);
-    setGame(r.state);
     setSelected(null);
     setViewed(null);
+    const notes = r.events.filter((e) => e.t === 'notice').map((e) => (e as { text: string }).text);
+    if (notes.length) say(notes.join('　'));
+    const steps = groupEvents(r.events);
+    const finalView = viewFor(r.state, liveViewer);
+    const known = (uid: string) => finalView.cards[uid]?.cardId ?? null;
+    let display = liveView;
+    setGame(r.state);
+    for (const step of steps) {
+      display = applyStep(display, step.events, known);
+      for (const [uid, o] of originsOf(step.events)) origins.current.set(uid, o);
+      setAnim({ display, viewer: liveViewer, banner: step.turnStart ?? null });
+      const atk = step.attack;
+      if (atk) window.requestAnimationFrame(() => rootRef.current && playAttack(rootRef.current, atk.uid, display.turnPlayer, atk.slot, atk.mode));
+      if (step.ms) await sleep(step.ms);
+    }
+    setAnim(null);
   };
 
   const cardOfUid = (uid: string) => cardById.get(game.cards[uid]!.cardId)!;
@@ -81,7 +121,7 @@ export default function App() {
 
   // 按下卡片：移動超過門檻就是拖曳，否則放開時當作點選（滑鼠與觸控共用）
   const beginPointer = (e: ReactPointerEvent, src: Source) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || anim) return;
     const sx = e.clientX;
     const sy = e.clientY;
     let moved = false;
@@ -128,42 +168,81 @@ export default function App() {
     return g;
   }, [legal, me]);
 
+  // 每個可以攻擊的格子有哪些攻擊方式（攻擊角色兩側的按鈕用）
+  const attackModes = useMemo(() => {
+    const m: Record<number, AttackMode[]> = {};
+    for (const a of legal) if (a.type === 'attack') (m[a.slot] ??= []).push(a.mode);
+    return m;
+  }, [legal]);
+
   const passLabel: Partial<Record<Pending['kind'], string>> = { clock: '略過時計', main: '結束主要階段', climax: '不打名場面', attackDeclare: '結束攻擊' };
-  const curPhase = PHASES.find((p) => p.id === game.phase);
+  const turnPlayer = view.turnPlayer;
+  const curPhase = PHASES.find((p) => p.id === view.phase);
   const dragCard = drag ? cardOfUid(drag.src.uid) : null;
+  const opp = (1 - viewer) as PlayerId;
+  const myTurn = turnPlayer === viewer;
+
+  // 回合中卻在等另一位玩家回應（升級、助太刀、確認公開的卡…）：用黃色標出來，回合中的玩家才知道不是卡住了
+  const responder = !anim && pending && game.turn > 0 && pending.player !== game.turnPlayer ? pending.player : null;
+
+  const plate = (p: PlayerId, side: 'me' | 'opp') => {
+    const active = view.turn > 0 && turnPlayer === p;
+    const status =
+      responder === p ? '⚠ 回應中：需要做選擇' :
+      responder !== null && active ? `▶ 回合中・等待 ${nm(responder)} 回應…` :
+      active ? `▶ 回合中・${curPhase?.name ?? ''}階段` : view.turn === 0 ? '換牌中' : '等待中';
+    return (
+      <div className={`plate ${side}${active ? ' active' : ''}${responder === p ? ' responding' : ''}${responder !== null && active ? ' waiting' : ''}`} style={{ ['--pc' as string]: PLAYERS[p].accent }}>
+        <div className="avatar">{nm(p).slice(0, 1)}</div>
+        <div className="pinfo">
+          <b>{nm(p)}</b>
+          <span>{PLAYERS[p].series}</span>
+          <em>{status}</em>
+          <small>手牌 {view.players[p].hand.length}・等級 {view.players[p].level.length}・傷害 {view.players[p].clock.length}/7</small>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className={`app${drag ? ' dragging' : ''}`} style={{ ['--accent' as string]: PLAYERS[viewer].accent }}>
+    <div
+      ref={rootRef}
+      className={`app${drag ? ' dragging' : ''}${anim ? ' animating' : ''}${panelOpen ? ' panel-open' : ''}`}
+      style={{ ['--accent' as string]: PLAYERS[viewer].accent }}
+    >
       <header className="topbar">
         <div className="brand">
           <span className="logo">WS</span>
           <span className="vs">
-            <b>{PLAYERS[viewer].label}</b>（{PLAYERS[viewer].series}）<i>vs</i>{PLAYERS[(1 - viewer) as PlayerId].series}
+            <b>{nm(viewer)}</b>（{PLAYERS[viewer].series}）<i>vs</i>{nm(opp)}（{PLAYERS[opp].series}）
           </span>
         </div>
         <ol className="phases" aria-label="階段列">
           {PHASES.map((p, i) => {
-            const cur = PHASES.findIndex((x) => x.id === game.phase);
+            const cur = PHASES.findIndex((x) => x.id === view.phase);
             return <li key={p.id} className={i === cur ? 'on' : i < cur ? 'done' : ''}>{p.name}</li>;
           })}
         </ol>
         <div className="opp-hand" title="對手手牌張數">
           <span>對手手牌</span>
-          <div className="fan">{view.players[(1 - viewer) as PlayerId].hand.map((u, i) => <img key={u} src={BACK_URL} alt="" style={{ ['--i' as string]: i }} />)}</div>
-          <b>{view.players[(1 - viewer) as PlayerId].hand.length}</b>
+          <div className="fan" data-zone={`hand-${opp}`}>
+            {view.players[opp].hand.map((u, i) => <img key={u} data-uid={u} src={BACK_URL} alt="" style={{ ['--i' as string]: i }} />)}
+          </div>
+          <b>{view.players[opp].hand.length}</b>
         </div>
         <label className="selftest" title="自己一個人測試時，換人不跳遮罩">
           <input type="checkbox" checked={selfTest} onChange={(e) => setSelfTest(e.target.checked)} /> 單人測試
         </label>
-        {pending && passLabel[pending.kind] && (
-          <button className="btn primary" onClick={() => act(pending.kind === 'clock' ? { type: 'clock', player: viewer, uid: null } : { type: 'pass', player: viewer })}>
+        {!anim && pending && passLabel[pending.kind] && (
+          <button className="btn primary top-pass" onClick={() => act(pending.kind === 'clock' ? { type: 'clock', player: viewer, uid: null } : { type: 'pass', player: viewer })}>
             {passLabel[pending.kind]}
           </button>
         )}
       </header>
-      <div className="hint">
-        <b>第 {Math.max(1, game.turn)} 回合・{game.turn === 0 ? '換牌' : `${PLAYERS[game.turnPlayer].label}的${curPhase?.name ?? ''}階段`}</b>
-        <span>{pending ? pendingHint(pending) : curPhase?.hint}</span>
+      <div className={`hint${viewer !== turnPlayer && view.turn > 0 ? ' responding' : ''}`}>
+        <b>第 {Math.max(1, view.turn)} 回合・{view.turn === 0 ? '換牌' : `${nm(turnPlayer)}的${curPhase?.name ?? ''}階段`}</b>
+        {viewer !== turnPlayer && view.turn > 0 && <em className="resp">{nm(viewer)} 回應中</em>}
+        <span>{anim ? '…' : pending ? pendingHint(pending) : curPhase?.hint}</span>
       </div>
       <div className="rotate-tip">手機請橫向使用，畫面會完整顯示整個場地。</div>
 
@@ -173,7 +252,7 @@ export default function App() {
             {panelOpen ? '◀' : '卡面預覽 ▶'}
           </button>
           {panelOpen && (shown ? (
-            <Preview card={shown}>{selected && !viewed && <CardActions src={selected} />}</Preview>
+            <Preview card={shown}>{selected && !viewed && !anim && <CardActions src={selected} />}</Preview>
           ) : (
             <div className="empty-preview">
               <div className="ph-card" />
@@ -183,28 +262,55 @@ export default function App() {
         </aside>
 
         <section className="table">
-          <Board
-            view={view}
-            viewer={viewer}
-            power={(uid) => engine.power(game, uid)}
-            soul={(uid) => engine.soul(game, uid)}
-            selected={selected?.uid ?? null}
-            glow={glow}
-            dropTargets={dropTargets}
-            dragOver={drag?.over ?? null}
-            draggingFrom={drag?.src.from === 'stage' ? drag.src.slot : null}
-            onCard={peek}
-            onZone={(title, ids, mode) => setZoneView({ title, ids, mode })}
-            onStagePointer={(e, slot) => {
-              const uid = me.stage[slot]?.uid;
-              if (uid) beginPointer(e, { from: 'stage', slot, uid });
-            }}
-          />
-          <div className="hand" aria-label="手牌">
+          <div className="mat-wrap">
+            <Board
+              view={view}
+              viewer={viewer}
+              active={turnPlayer}
+              power={(uid) => engine.power(game, uid)}
+              soul={(uid) => engine.soul(game, uid)}
+              selected={selected?.uid ?? null}
+              glow={glow}
+              dropTargets={dropTargets}
+              dragOver={drag?.over ?? null}
+              draggingFrom={drag?.src.from === 'stage' ? drag.src.slot : null}
+              onCard={peek}
+              onZone={(title, ids, mode) => setZoneView({ title, ids, mode })}
+              onStagePointer={(e, slot) => {
+                const uid = me.stage[slot]?.uid;
+                if (uid) beginPointer(e, { from: 'stage', slot, uid });
+              }}
+              attackModes={attackModes}
+              onAttack={(slot, mode) => act({ type: 'attack', player: viewer, slot: slot as Slot, mode })}
+            />
+            {view.turn > 0 && (
+              <div className={`turn-pill ${myTurn ? 'me' : 'opp'}${responder !== null ? ' waiting' : ''}`} style={{ ['--pc' as string]: PLAYERS[turnPlayer].accent }}>
+                {responder !== null ? `⏳ 等待 ${nm(responder)} 回應` : `${myTurn ? '▼' : '▲'} ${nm(turnPlayer)}的回合`}
+              </div>
+            )}
+            {/* 場地右側：上面對手的名牌；下面自己的名牌，名牌上方是階段按鈕（兩者保持固定間距，名牌長高也不會蓋到按鈕） */}
+            <div className="side-col opp">{plate(opp, 'opp')}</div>
+            <div className="side-col me">
+              {!anim && pending && passLabel[pending.kind] && (
+                <button className="btn primary side-pass" onClick={() => act(pending.kind === 'clock' ? { type: 'clock', player: viewer, uid: null } : { type: 'pass', player: viewer })}>
+                  {passLabel[pending.kind]}
+                </button>
+              )}
+              {plate(viewer, 'me')}
+            </div>
+            {anim?.banner != null && (
+              <div className="turn-banner" key={`${view.turn}-${anim.banner}`} style={{ ['--pc' as string]: PLAYERS[anim.banner].accent }}>
+                <small>第 {view.turn} 回合</small>
+                <b>{nm(anim.banner)} 的回合</b>
+              </div>
+            )}
+          </div>
+          <div className="hand" aria-label="手牌" data-zone={`hand-${viewer}`}>
             {me.hand.map((uid) => (
               <CardFace
                 key={uid}
-                card={cardOfUid(uid)}
+                uid={uid}
+                card={cardById.get(view.cards[uid]?.cardId ?? game.cards[uid]!.cardId)!}
                 selected={selected?.uid === uid}
                 glow={glow.has(uid)}
                 dim={drag?.src.uid === uid}
@@ -217,24 +323,57 @@ export default function App() {
 
       {zoneView && <ZoneDialog view={zoneView} cardOf={(uid) => (view.cards[uid]?.cardId ? cardById.get(view.cards[uid]!.cardId!)! : null)} onClose={() => setZoneView(null)} />}
 
-      {pending && !handoff && isPrompt(pending) && <PromptSheet key={JSON.stringify(pending)} pending={pending} game={game} legal={legal} act={act} />}
+      {started && !anim && pending && !handoff && isPrompt(pending) && (
+        <PromptSheet key={JSON.stringify(pending)} pending={pending} game={game} act={act} name={nm(pending.player)} />
+      )}
 
       {handoff && (
         <div className="handoff">
-          <div className="handoff-box" style={{ ['--accent' as string]: PLAYERS[viewer].accent }}>
-            <p className="who">輪到 {PLAYERS[viewer].label}（{PLAYERS[viewer].series}）</p>
+          <div className="handoff-box" style={{ ['--accent' as string]: PLAYERS[liveViewer].accent }}>
+            <p className="who">輪到 {nm(liveViewer)}（{PLAYERS[liveViewer].series}）</p>
+            {game.turn > 0 && liveViewer !== game.turnPlayer && <p className="turn-note">現在仍是{nm(game.turnPlayer)}的回合，需要{nm(liveViewer)}回應一下</p>}
             <p>{pending ? pendingHint(pending) : ''}</p>
-            <p className="muted">請把畫面交給{PLAYERS[viewer].label}，對方的手牌已經隱藏。</p>
-            <button className="btn primary" onClick={() => setSeen(viewer)}>我是{PLAYERS[viewer].label}，開始</button>
+            <p className="muted">請把畫面交給{nm(liveViewer)}，對方的手牌已經隱藏。</p>
+            <button className="btn primary" onClick={() => setSeen(liveViewer)}>我是{nm(liveViewer)}，開始</button>
           </div>
         </div>
       )}
 
-      {game.winner !== null && (
+      {!started && (
+        <div className="handoff">
+          <form
+            className="handoff-box setup"
+            onSubmit={(e) => {
+              e.preventDefault();
+              try { localStorage.setItem(NAMES_KEY, JSON.stringify(names)); } catch { /* 存不了也沒關係 */ }
+              setGame(newGame());
+              setSeen(null);
+              setStarted(true);
+            }}
+          >
+            <p className="who">黑白雙翼 對戰</p>
+            <p className="muted">同一台電腦兩人輪流操作。之後接上登入，就會改用帳號名稱。</p>
+            {([0, 1] as PlayerId[]).map((p) => (
+              <label key={p} className="name-row" style={{ ['--pc' as string]: PLAYERS[p].accent }}>
+                <span>{PLAYERS[p].series}</span>
+                <input
+                  value={names[p]}
+                  maxLength={12}
+                  placeholder={`玩家 ${p + 1}`}
+                  onChange={(e) => setNames((n) => (p === 0 ? [e.target.value, n[1]] : [n[0], e.target.value]))}
+                />
+              </label>
+            ))}
+            <button className="btn primary" type="submit">開始對戰</button>
+          </form>
+        </div>
+      )}
+
+      {started && !anim && game.winner !== null && (
         <div className="handoff">
           <div className="handoff-box">
-            <p className="who">{game.winner === 'draw' ? '平手' : `${PLAYERS[game.winner].label}（${PLAYERS[game.winner].series}）獲勝`}</p>
-            <button className="btn primary" onClick={() => { setGame(newGame()); setSeen(null); }}>再來一局</button>
+            <p className="who">{game.winner === 'draw' ? '平手' : `${nm(game.winner)}（${PLAYERS[game.winner].series}）獲勝`}</p>
+            <button className="btn primary" onClick={() => setStarted(false)}>再來一局</button>
           </div>
         </div>
       )}
@@ -285,7 +424,7 @@ function pendingHint(p: Pending): string {
     case 'clock': return '可以把 1 張手牌拖到傷害區（之後抽 2 張），或按「略過時計」。';
     case 'main': return '把手牌拖到格子出牌、拖動角色換位置、點選角色使用起動能力；做完按「結束主要階段」。';
     case 'climax': return '可以把名場面拖到名場面區，或按「不打名場面」。';
-    case 'attackDeclare': return '點選發光的前列角色選擇攻擊方式，或按「結束攻擊」。';
+    case 'attackDeclare': return '點選發光的前列角色，選擇正打、側打或直接攻擊；不攻擊就按「結束攻擊」。';
     case 'counter': return '對手正打你的角色：可以使用助太刀。';
     case 'levelUp': return '傷害區滿 7 張：選 1 張放到等級區（升級）。';
     case 'encoreChoose': return '選 1 張倒置的角色放進休息室（之後可以安可）。';
@@ -295,21 +434,36 @@ function pendingHint(p: Pending): string {
     case 'select': return p.prompt;
     case 'confirm': return p.prompt.split('\n')[0]!;
     case 'chooseSlot': return p.prompt;
-    case 'orderAbility': return '有多個效果同時發動：選擇先解決哪一個。';
+    case 'orderAbility': return p.canSkip ? '有多個效果可以發動：選擇先處理哪一個（選了之後還能決定要不要發動），或都不發動。' : '有多個效果同時發動：選擇先解決哪一個。';
+    case 'acknowledge': return p.prompt;
   }
 }
 
-// 底部彈出視窗：回應引擎的待決選擇
-function PromptSheet({ pending: p, game, legal, act }: { pending: Pending; game: GameState; legal: Action[]; act: (a: Action) => void }) {
+// 底部彈出視窗：回應引擎的待決選擇。可以收起來看場地，看完再展開
+function PromptSheet({ pending: p, game, act, name }: { pending: Pending; game: GameState; act: (a: Action) => void; name: string }) {
   const [picked, setPicked] = useState<string[]>([]);
+  const [focus, setFocus] = useState<Card | null>(null); // 最後點的卡：在視窗右側顯示說明
+  const [collapsed, setCollapsed] = useState(false);
   const player = p.player;
   const cardOf = (uid: string) => cardById.get(game.cards[uid]!.cardId)!;
   const toggle = (uid: string, max: number) =>
     setPicked((cur) => (cur.includes(uid) ? cur.filter((u) => u !== uid) : max === 1 ? [uid] : cur.length < max ? [...cur, uid] : cur));
 
-  const cards = (options: string[], max: number) => (
+  // shown：一起顯示但不能選的卡（看牌時翻開的其他牌）
+  const cards = (options: string[], max: number, shown?: string[]) => (
     <div className="opts">
-      {options.map((uid) => <CardFace key={uid} card={cardOf(uid)} selected={picked.includes(uid)} onClick={() => toggle(uid, max)} />)}
+      {(shown ?? options).map((uid) => {
+        const can = options.includes(uid) && max > 0;
+        return (
+          <CardFace
+            key={uid}
+            card={cardOf(uid)}
+            selected={picked.includes(uid)}
+            dim={!can && !!shown}
+            onClick={() => { if (can) toggle(uid, max); setFocus(cardOf(uid)); }}
+          />
+        );
+      })}
     </div>
   );
   const choose = (uids: string[], dest?: 'hand' | 'stock') => act({ type: 'choose', player, uids, ...(dest ? { dest } : {}) });
@@ -325,13 +479,17 @@ function PromptSheet({ pending: p, game, legal, act }: { pending: Pending; game:
       body = cards(game.players[player].hand, p.count);
       buttons = <button className="btn primary" disabled={picked.length !== p.count} onClick={() => choose(picked)}>丟掉這 {p.count} 張</button>;
       break;
-    case 'select':
-      body = cards(p.options, p.max);
-      buttons = (
-        <button className="btn primary" disabled={picked.length < p.min || picked.length > p.max} onClick={() => choose(picked)}>
-          {picked.length ? `確定（${picked.length} 張）` : p.min === 0 ? '都不選' : `請選 ${p.min} 張`}
-        </button>
-      );
+    case 'select': {
+      body = cards(p.options, p.max, p.shown);
+      const label = p.shown
+        ? picked.length ? `把這 ${picked.length} 張加到手牌，其餘放到休息室` : p.options.length ? '都不拿，全部放到休息室' : '放到休息室'
+        : picked.length ? `確定（${picked.length} 張）` : p.min === 0 ? '都不選' : `請選 ${p.min} 張`;
+      buttons = <button className="btn primary" disabled={picked.length < p.min || picked.length > p.max} onClick={() => choose(picked)}>{label}</button>;
+      break;
+    }
+    case 'acknowledge':
+      body = cards([], 0, p.cards);
+      buttons = <button className="btn primary" onClick={() => act({ type: 'yesno', player, yes: true })}>確認</button>;
       break;
     case 'levelUp':
     case 'encoreChoose':
@@ -383,14 +541,30 @@ function PromptSheet({ pending: p, game, legal, act }: { pending: Pending; game:
           ))}
         </div>
       );
+      if (p.canSkip) buttons = <button className="btn" onClick={() => act({ type: 'choose', player, uids: [] })}>都不發動</button>;
       break;
   }
-  void legal;
   return (
-    <div className="sheet prompt" role="dialog" aria-label="需要你的選擇">
-      <h3>{pendingHint(p)}<small>{PLAYERS[player].label}</small></h3>
-      {body}
-      {buttons && <div className="actions">{buttons}</div>}
+    <div className={`sheet prompt${collapsed ? ' collapsed' : ''}`} role="dialog" aria-label="需要你的選擇">
+      <div className="sheet-head">
+        <h3>{pendingHint(p)}<small>{name}</small></h3>
+        <button className="btn ghost fold" onClick={() => setCollapsed(!collapsed)}>{collapsed ? '▲ 展開' : '▼ 收起看場地'}</button>
+      </div>
+      {!collapsed && (
+        <div className="prompt-row">
+          <div className="prompt-main">
+            {body}
+            {buttons && <div className="actions">{buttons}</div>}
+          </div>
+          {focus && (
+            <div className="prompt-info">
+              <b>{focus.name.zh}</b>
+              <p className="meta">{cardMeta(focus)}</p>
+              <Abilities card={focus} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

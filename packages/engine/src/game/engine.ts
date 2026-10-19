@@ -315,11 +315,13 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         then(s, { k: 'encoreLoop' });
         return;
       case 'encoreLoop':
-        // 回合玩家先，把倒置的角色一張一張放進休息室〔7.7.1.2～7.7.1.4〕
+        // 回合玩家先，把倒置的角色一張一張放進休息室〔7.7.1.2～7.7.1.4〕。
+        // 規則上由玩家選放的順序；本專案依使用者決定自動依格子順序放，每放一張都照樣處理安可
         for (const p of [tp, other(tp)]) {
-          const options = s.players[p].stage.filter((c) => c?.state === 'reverse').map((c) => c!.uid);
-          if (options.length) {
-            s.pending = { kind: 'encoreChoose', player: p, options };
+          const pl = s.players[p];
+          const slot = pl.stage.findIndex((c) => c?.state === 'reverse');
+          if (slot >= 0) {
+            move(ctx, pl.stage[slot]!.uid, p, 'stage', 'waiting', { fromSlot: slot as Slot }); // 會誘發安可
             then(s, { k: 'encoreLoop' });
             return;
           }
@@ -348,7 +350,16 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       case 'levelCheck': {
         // 升級〔9.3〕：傷害區 7 張以上，從最下面 7 張選 1 張到等級區
         const pl = s.players[step.p];
-        if (pl.clock.length >= 7) s.pending = { kind: 'levelUp', player: step.p, options: pl.clock.slice(0, 7) };
+        if (pl.clock.length < 7) return;
+        const options = pl.clock.slice(0, 7);
+        if (pl.level.length >= 3) {
+          // 已經等級 3：升到等級 4 就輸了〔9.4.1.1〕，選哪張都一樣，不用問
+          move(ctx, options[0]!, step.p, 'clock', 'level');
+          ctx.ev.push({ t: 'levelUp', p: step.p, uid: options[0]! });
+          for (const u of options.slice(1)) move(ctx, u, step.p, 'clock', 'waiting');
+          return;
+        }
+        s.pending = { kind: 'levelUp', player: step.p, options };
         return;
       }
       case 'frame':
@@ -408,12 +419,16 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
 
     switch (pend.kind) {
       case 'mulligan': {
-        // 換牌〔5.2.1.4〕：先攻先，丟任意張再抽同樣張數
+        // 換牌：丟任意張再抽同樣張數。規則〔5.2.1.4〕是先攻先、後攻後；
+        // 本專案依使用者決定改成雙方同時進行（各自的牌組，彼此不受影響）
         if (a.type !== 'mulligan') return wrong;
-        if (a.discard.some((u) => !pl.hand.includes(u)) || new Set(a.discard).size !== a.discard.length) return '只能丟自己手牌裡的卡';
-        for (const u of a.discard) move(ctx, u, p, 'hand', 'waiting');
-        for (let i = 0; i < a.discard.length; i++) drawOne(ctx, p);
-        s.pending = p === s.firstPlayer ? { kind: 'mulligan', player: other(p) } : null;
+        const who = a.player;
+        const hand = s.players[who].hand;
+        if (a.discard.some((u) => !hand.includes(u)) || new Set(a.discard).size !== a.discard.length) return '只能丟自己手牌裡的卡';
+        for (const u of a.discard) move(ctx, u, who, 'hand', 'waiting');
+        for (let i = 0; i < a.discard.length; i++) drawOne(ctx, who);
+        const waiting = pend.waiting.filter((x) => x !== who);
+        s.pending = waiting.length ? { kind: 'mulligan', player: waiting[0]!, waiting } : null;
         if (!s.pending) then(s, { k: 'turnStart' });
         return null;
       }
@@ -583,7 +598,14 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       }
       case 'orderAbility': {
         // 同時待機的自動能力：由主人決定先解決哪一個〔8.5.1.2〕
-        if (a.type !== 'choose' || a.uids.length !== 1) return '請選 1 個要先解決的能力';
+        if (a.type !== 'choose') return wrong;
+        if (a.uids.length === 0 && pend.canSkip) {
+          // 都是「可以發動」的能力：全部選擇不發動〔8.7.3.2.1〕
+          s.standby = s.standby.filter((w) => w.controller !== p);
+          s.pending = null;
+          return null;
+        }
+        if (a.uids.length !== 1) return '請選 1 個要先解決的能力';
         const id = Number(a.uids[0]);
         const i = s.standby.findIndex((w) => w.id === id && w.controller === p);
         if (i < 0) return '沒有這個能力';
@@ -597,6 +619,9 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       case 'confirm':
         if (a.type !== 'yesno') return wrong;
         return fx.answer(ctx, pend, a.yes);
+      case 'acknowledge':
+        if (a.type !== 'yesno') return wrong;
+        return fx.answer(ctx, pend, true);
       case 'chooseSlot':
         if (a.type !== 'chooseSlot') return wrong;
         return fx.answer(ctx, pend, a.slot);
@@ -608,6 +633,8 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     const { s } = ctx;
     ruleCheck(ctx);
     if (s.winner !== null || s.pending || !s.standby.length) return false;
+    // 條件不符、付不起、或已經沒有意義的能力（例如另一個安可已經讓角色回場）不列出來，解決時本來就會什麼都不做
+    s.standby = s.standby.filter((w) => fx.viable(s, w));
     for (const p of [s.turnPlayer, other(s.turnPlayer)]) {
       const mine = s.standby.filter((w) => w.controller === p);
       if (!mine.length) continue;
@@ -615,7 +642,8 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         s.standby.splice(s.standby.indexOf(mine[0]!), 1);
         then(s, { k: 'abilityStart', w: mine[0]! });
       } else {
-        s.pending = { kind: 'orderAbility', player: p, options: mine.map((w) => ({ id: w.id, uid: w.src, text: w.ability.text.zh })) };
+        const canSkip = mine.every((w) => w.ability.optional);
+        s.pending = { kind: 'orderAbility', player: p, canSkip, options: mine.map((w) => ({ id: w.id, uid: w.src, text: w.ability.text.zh })) };
       }
       return true;
     }
@@ -627,8 +655,8 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     const { s } = ctx;
     for (let i = 0; i < MAX_STEPS; i++) {
       // 能力或效果解決到一半時，先把它做完，再回到檢查時點處理下一個〔8.5.1.2〕
-      const next = s.queue.at(-1)?.k;
-      const midEffect = next === 'frame' || next === 'abilityStart';
+      // （效果中途插入的傷害處理等步驟也算在效果裡：佇列裡還有沒做完的效果，就不插入檢查時點）
+      const midEffect = s.queue.at(-1)?.k === 'abilityStart' || s.queue.some((st) => st.k === 'frame');
       if (!midEffect && checkTiming(ctx)) continue;
       ruleCheck(ctx);
       if (s.winner !== null || s.pending) return null;
@@ -659,7 +687,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     s.firstPlayer = nextRandom(s) < 0.5 ? 0 : 1;
     s.turnPlayer = s.firstPlayer;
     for (const p of [0, 1] as PlayerId[]) for (let i = 0; i < 5; i++) drawOne(ctx, p);
-    s.pending = { kind: 'mulligan', player: s.firstPlayer };
+    s.pending = { kind: 'mulligan', player: s.firstPlayer, waiting: [s.firstPlayer, other(s.firstPlayer)] };
     return { state: s, events: ctx.ev };
   }
 
@@ -674,7 +702,8 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     }
     const pend = s.pending;
     if (!pend) return fail('現在沒有在等待任何動作');
-    if (action.player !== pend.player) return fail('還沒輪到你');
+    const mayAct = pend.kind === 'mulligan' ? pend.waiting.includes(action.player) : action.player === pend.player;
+    if (!mayAct) return fail('還沒輪到你');
     const err = resolve(ctx, pend, action);
     if (err) return fail(err);
     const loopErr = advance(ctx);
@@ -739,6 +768,9 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       case 'confirm':
         out.push({ type: 'yesno', player, yes: true }, { type: 'yesno', player, yes: false });
         break;
+      case 'acknowledge':
+        out.push({ type: 'yesno', player, yes: true });
+        break;
       case 'handLimit':
         choose(pl.hand.slice(0, pend.count));
         choose(pl.hand.slice(-pend.count));
@@ -762,6 +794,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         for (const slot of pend.slots) out.push({ type: 'chooseSlot', player, slot });
         break;
       case 'orderAbility':
+        if (pend.canSkip) choose([]);
         for (const o of pend.options) choose([String(o.id)]);
         break;
     }

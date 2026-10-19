@@ -73,9 +73,19 @@ describe('遊戲準備〔5〕', () => {
     const c = E.newGame({ seed: 43, decks: DECKS }).state;
     expect(a.players[0].hand).toHaveLength(5);
     expect(a.players[1].deck).toHaveLength(45);
-    expect(a.pending).toEqual({ kind: 'mulligan', player: a.firstPlayer });
+    expect(a.pending).toEqual({ kind: 'mulligan', player: a.firstPlayer, waiting: [a.firstPlayer, 1 - a.firstPlayer] });
     expect(a.players[0].deck).toEqual(b.players[0].deck);
     expect(a.players[0].deck).not.toEqual(c.players[0].deck);
+  });
+
+  it('換牌：雙方同時進行，後攻也可以先換（使用者決定，規則原本是先攻先）', () => {
+    let x = E.newGame({ seed: 7, decks: DECKS }).state;
+    const second = (1 - x.firstPlayer) as PlayerId;
+    x = ok(x, { type: 'mulligan', player: second, discard: [] });
+    expect(x.pending).toEqual({ kind: 'mulligan', player: x.firstPlayer, waiting: [x.firstPlayer] });
+    x = ok(x, { type: 'mulligan', player: x.firstPlayer, discard: [] });
+    expect(x.turn).toBe(1);
+    expect(x.turnPlayer).toBe(x.firstPlayer);
   });
 
   it('換牌：丟幾張就抽幾張〔5.2.1.4〕', () => {
@@ -85,7 +95,7 @@ describe('遊戲準備〔5〕', () => {
     s = ok(s, { type: 'mulligan', player: fp, discard });
     expect(s.players[fp].hand).toHaveLength(5);
     expect(s.players[fp].waiting).toEqual(discard);
-    expect(s.pending).toEqual({ kind: 'mulligan', player: 1 - fp });
+    expect(s.pending).toEqual({ kind: 'mulligan', player: 1 - fp, waiting: [1 - fp] });
   });
 
   it('換牌後先攻玩家起立、抽 1 張，停在時計階段〔6.2、6.3〕', () => {
@@ -231,8 +241,9 @@ describe('攻擊與戰鬥〔7〕', () => {
     stackDeck(s, 1, BD_FILLER.slice(0, 2));
     s = toAttack(s);
     s = ok(s, { type: 'attack', player: 0, slot: 1, mode: 'front' });
-    // 對手倒置 → 安可步驟要對手選擇放進休息室
-    expect(s.players[1].stage[1]).toEqual({ uid: d, state: 'reverse' });
+    // 對手倒置 → 安可步驟自動放進休息室（對手沒有能量可以安可）
+    expect(s.players[1].stage[1]).toBeNull();
+    expect(s.players[1].waiting).toContain(d);
     expect(s.players[0].stage[1]!.state).toBe('rest');
     expect(a).toBeTruthy();
 
@@ -245,9 +256,11 @@ describe('攻擊與戰鬥〔7〕', () => {
     stackDeck(t, 1, BD_FILLER.slice(0, 2));
     // 攻擊方 2000，能量 3 張以下時【永】+2000 → 4000，和防守方 4000 相同
     t = toAttack(t);
-    t = ok(t, { type: 'attack', player: 0, slot: 1, mode: 'front' });
-    expect(t.players[0].stage[1]!.state).toBe('reverse');
-    expect(t.players[1].stage[1]!.state).toBe('reverse');
+    const attacker = t.players[0].stage[1]!.uid;
+    const defender = t.players[1].stage[1]!.uid;
+    const r = E.apply(t, { type: 'attack', player: 0, slot: 1, mode: 'front' });
+    const reversed = r.events.filter((e) => e.t === 'cardState' && e.state === 'reverse').map((e) => (e as { uid: string }).uid);
+    expect(reversed.sort()).toEqual([attacker, defender].sort());
   });
 
   it('傷害翻到名場面就取消，翻出的卡全進休息室〔4.12.1.2〕', () => {
@@ -320,8 +333,7 @@ describe('規則處理〔9〕', () => {
     stackDeck(s, 1, ['BD/W125-T13', 'BD/W125-T14']);
     s = toAttack(s);
     s = ok(s, { type: 'attack', player: 0, slot: 1, mode: 'direct' });
-    if (s.pending?.kind !== 'levelUp') throw new Error('應該要升級');
-    s = ok(s, { type: 'choose', player: 1, uids: [s.pending.options[0]!] });
+    // 已經等級 3：不用選，直接升到等級 4 → 敗北
     expect(s.winner).toBe(0);
     expect(s.phase).toBe('gameOver');
   });
@@ -359,9 +371,9 @@ describe('安可步驟〔7.7、10.2〕', () => {
 
   it('倒置的角色放進休息室；付 3 能量可以橫置回原位', () => {
     let { s, d } = reversedSetup(3);
-    expect(s.pending).toEqual({ kind: 'encoreChoose', player: 1, options: [d] });
-    s = ok(s, { type: 'choose', player: 1, uids: [d] });
-    expect(s.pending).toMatchObject({ kind: 'confirm', player: 1 }); // 預設安可［③］：要發動嗎？
+    // 倒置的角色自動放進休息室，只問要不要安可（預設安可［③］）
+    expect(s.players[1].waiting).toContain(d);
+    expect(s.pending).toMatchObject({ kind: 'confirm', player: 1 });
     const r = E.apply(s, { type: 'yesno', player: 1, yes: true });
     expect(r.events).toContainEqual(expect.objectContaining({ t: 'move', uid: d, from: { p: 1, zone: 'waiting' }, to: { p: 1, zone: 'stage', slot: 1 } }));
     expect(r.state.players[1].stage[1]?.uid).toBe(d);
@@ -372,8 +384,8 @@ describe('安可步驟〔7.7、10.2〕', () => {
   });
 
   it('能量不足 3 張就不能安可', () => {
-    let { s, d } = reversedSetup(2);
-    s = ok(s, { type: 'choose', player: 1, uids: [d] });
+    const { s, d } = reversedSetup(2);
+    expect(s.pending?.kind).not.toBe('confirm'); // 付不起就不問
     expect(s.players[1].waiting).toContain(d);
     expect(s.players[1].stage[1]).toBeNull();
   });

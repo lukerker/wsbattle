@@ -67,6 +67,7 @@ describe('Ave Mujica BD/W125', () => {
     if (s.pending?.kind !== 'select') return;
     const picked = s.pending.options[0]!;
     s = choose(s, [picked]);
+    s = yes(s); // 對手確認
     expect(s.players[1].hand).toContain(picked);
     s = choose(s, [ally]);
     expect(E.power(s, ally)).toBe(1500 + 1000 + 500 + 1000 + 2000); // 能量 3 張以下、後列 Timoris、Choir、這次 +2000

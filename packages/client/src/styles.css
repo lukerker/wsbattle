@@ -344,3 +344,158 @@ button { font: inherit; color: inherit; }
   .sheet.prompt { max-height: 80dvh; }
   .sheet.prompt h3 { font-size: 13px; }
 }
+/* 選擇視窗：右側顯示最後點的卡的說明 */
+.prompt-row { display: flex; gap: 18px; align-items: flex-start; }
+.prompt-main { flex: 1; min-width: 0; }
+.prompt-info { width: min(340px, 40vw); flex: none; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); max-height: 44dvh; overflow-y: auto; }
+.prompt-info b { font-size: 15px; }
+.prompt-info .meta { margin: 4px 0 8px; font-size: 13px; color: #ffcf6b; }
+.prompt-info .abilities p { font-size: 13px; line-height: 1.55; }
+/* 對手回合中由自己回應時，提示列改色 */
+.hint.responding { background: linear-gradient(90deg, rgba(255, 207, 107, 0.22), transparent 60%); }
+.hint .resp { font-style: normal; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: #ffcf6b; color: #222; }
+.turn-note { color: #ffcf6b; font-weight: 600; }
+@media (max-height: 520px) {
+  .prompt-info { max-height: 60dvh; width: 42vw; padding: 6px 8px; }
+  .prompt-info .abilities p { font-size: 11px; }
+}
+/* ───── 回合提示：誰的回合一眼看得到 ───── */
+.mat-wrap { position: relative; flex: none; }
+/* 回合中的那半邊場地發光 */
+.half-glow { position: absolute; left: 0; right: 0; pointer-events: none; z-index: 0; transition: opacity 0.4s; }
+.half-glow.me { border-radius: 0 0 calc(var(--u) * 0.22) calc(var(--u) * 0.22); box-shadow: inset 0 calc(var(--u) * -0.06) calc(var(--u) * 0.9) color-mix(in srgb, var(--accent) 35%, transparent); background: linear-gradient(0deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%); }
+.half-glow.opp { border-radius: calc(var(--u) * 0.22) calc(var(--u) * 0.22) 0 0; box-shadow: inset 0 calc(var(--u) * 0.06) calc(var(--u) * 0.9) rgba(255, 255, 255, 0.12); background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 70%); }
+/* 場地中線上的回合標籤 */
+.turn-pill {
+  position: absolute; left: calc(var(--u) * 0.15); top: 50%; transform: translateY(-50%); z-index: 5; white-space: nowrap;
+  padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 800; color: #fff;
+  background: var(--pc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc) 30%, transparent), 0 6px 18px rgba(0,0,0,0.5);
+}
+/* 玩家名牌：場地右側，上面是對手、下面是自己 */
+.plate {
+  position: absolute; left: calc(100% + calc(var(--u) * 0.35)); width: 190px; display: flex; gap: 10px; align-items: center;
+  padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); opacity: 0.7; transition: opacity 0.3s, box-shadow 0.3s, border-color 0.3s;
+}
+.plate.opp { top: 0; }
+.plate.me { bottom: 0; }
+.plate.active { opacity: 1; border-color: var(--pc); box-shadow: 0 0 0 1px var(--pc), 0 0 26px color-mix(in srgb, var(--pc) 45%, transparent); }
+.avatar { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 18px; color: #fff; background: linear-gradient(135deg, var(--pc), color-mix(in srgb, var(--pc) 50%, #000)); }
+.pinfo { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pinfo b { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pinfo span { font-size: 11px; color: var(--muted); }
+.pinfo em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--muted); }
+.plate.active .pinfo em { color: var(--pc); }
+.pinfo small { font-size: 11px; color: var(--muted); }
+/* 回合開始的橫幅 */
+.turn-banner {
+  position: absolute; left: 50%; top: 50%; z-index: 40; pointer-events: none; text-align: center; white-space: nowrap;
+  padding: 14px 48px; border-radius: 14px; background: color-mix(in srgb, var(--pc) 88%, #000); color: #fff;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.15), 0 20px 60px rgba(0,0,0,0.6);
+  animation: banner 1.1s ease-out both;
+}
+.turn-banner small { display: block; font-size: 13px; opacity: 0.85; }
+.turn-banner b { font-size: 28px; letter-spacing: 0.06em; }
+@keyframes banner {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.04); }
+}
+/* 解決領域（牌組右邊）：判定、傷害翻開的卡 */
+.z-resolution { border-style: dashed; border-color: rgba(255, 207, 107, 0.6); }
+.z-resolution .cimg { inset: auto; left: 0; width: 100%; height: calc(var(--u) * 1.4); }
+/* 播動畫時不能操作 */
+.app.animating .table, .app.animating .panel .actions, .app.animating .topbar .btn { pointer-events: none; }
+
+/* 開局：輸入玩家名稱 */
+.setup { display: flex; flex-direction: column; gap: 10px; min-width: min(380px, 90vw); }
+.name-row { display: flex; align-items: center; gap: 10px; text-align: left; }
+.name-row span { width: 90px; font-size: 13px; font-weight: 700; color: var(--pc); }
+.name-row input { flex: 1; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; }
+.name-row input:focus { outline: none; border-color: var(--pc); }
+
+/* 選擇視窗不要擋住左邊的卡面說明 */
+.app { --panel-w: 320px; }
+.app.panel-open .sheet { left: var(--panel-w); }
+@media (max-width: 1000px) { .app { --panel-w: 280px; } }
+@media (max-width: 1450px) { .plate { display: none; } }
+@media (max-height: 520px) {
+  .app { --panel-w: 250px; }
+  .turn-pill { font-size: 10px; padding: 3px 8px; }
+  .turn-banner { padding: 8px 24px; }
+  .turn-banner b { font-size: 18px; }
+}
+/* ───── 主要操作按鈕：寬螢幕放在場地右側、自己的名牌上方 ───── */
+.side-pass {
+  position: absolute; left: calc(100% + calc(var(--u) * 0.35)); bottom: 112px; width: 190px; padding: 12px 14px; font-size: 15px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+@media (min-width: 1451px) { .top-pass { display: none; } }
+@media (max-width: 1450px) { .side-pass { display: none; } }
+
+/* ───── 攻擊方式按鈕：直式，貼在攻擊角色左右 ───── */
+.atk-btn {
+  position: absolute; top: 50%; z-index: 25; width: max(34px, calc(var(--u) * 0.44)); min-height: calc(var(--u) * 1.4);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px 0;
+  border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 12px; cursor: pointer; color: #fff;
+  font-weight: 800; letter-spacing: 0.25em;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  animation: atk-in 0.22s ease-out both, atk-pulse 1.6s ease-in-out 0.3s infinite;
+}
+.atk-btn.l { right: calc(100% + 8px); }
+.atk-btn.r { left: calc(100% + 8px); }
+.atk-btn span { font-size: max(12px, calc(var(--u) * 0.17)); writing-mode: vertical-rl; text-orientation: upright; }
+.atk-btn i { font-style: normal; font-size: max(14px, calc(var(--u) * 0.2)); }
+.atk-btn.front { background: linear-gradient(180deg, #ff6a5a, #c21d3a); }
+.atk-btn.side { background: linear-gradient(180deg, #5aa8ff, #2a4fc2); }
+.atk-btn.direct span { letter-spacing: 0.05em; }
+.atk-btn.direct { background: linear-gradient(180deg, #ffd166, #e08a1a); color: #2a1a00; }
+.atk-btn:hover { filter: brightness(1.12); }
+.atk-btn:active { transform: translateY(-50%) scale(0.96); }
+@keyframes atk-in { from { opacity: 0; transform: translateY(-50%) scale(0.8); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
+@keyframes atk-pulse { 0%, 100% { box-shadow: 0 8px 22px rgba(0,0,0,0.55), 0 0 0 0 rgba(255,255,255,0.0); } 50% { box-shadow: 0 8px 22px rgba(0,0,0,0.55), 0 0 18px 2px rgba(255,255,255,0.28); } }
+
+/* ───── 攻擊命中特效：衝擊波＋交叉斬擊 ───── */
+.impact { position: fixed; z-index: 70; width: 0; height: 0; pointer-events: none; --c: #ffe08a; }
+.impact.side { --c: #8fd0ff; }
+.impact.direct { --c: #ff8a6a; }
+.impact b {
+  position: absolute; left: -60px; top: -60px; width: 120px; height: 120px; border-radius: 50%;
+  border: 4px solid var(--c); box-shadow: 0 0 30px var(--c), inset 0 0 20px var(--c);
+  animation: ring 0.6s ease-out forwards;
+}
+.impact.direct b { left: -90px; top: -90px; width: 180px; height: 180px; }
+.impact i {
+  position: absolute; left: -80px; top: -4px; width: 160px; height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, transparent, #fff 35%, var(--c) 50%, #fff 65%, transparent); box-shadow: 0 0 18px var(--c);
+  animation: slash 0.45s ease-out forwards;
+}
+.impact i:first-child { --r: 35deg; }
+.impact i:nth-child(2) { --r: -35deg; animation-delay: 0.07s; }
+@keyframes ring { from { transform: scale(0.15); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+@keyframes slash {
+  0% { transform: rotate(var(--r)) scaleX(0); opacity: 1; }
+  45% { transform: rotate(var(--r)) scaleX(1.1); opacity: 1; }
+  100% { transform: rotate(var(--r)) scaleX(1.25); opacity: 0; }
+}
+
+/* ───── 選擇視窗可以收起來看場地 ───── */
+.sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.sheet-head h3 { margin: 0; }
+.sheet .fold { flex: none; font-size: 12px; padding: 4px 10px; }
+.sheet.collapsed { padding-top: 10px; padding-bottom: 10px; }
+.sheet.collapsed h3 { font-size: 13px; }
+.cardface.dim { opacity: 0.45; }
+/* ───── 場地右側欄：名牌與階段按鈕排成一欄，固定間距 ───── */
+.side-col { position: absolute; left: calc(100% + calc(var(--u) * 0.35)); width: 200px; display: flex; flex-direction: column; gap: 22px; }
+.side-col.opp { top: 0; }
+.side-col.me { bottom: 0; }
+.side-col .plate { position: static; width: auto; }
+.side-col .side-pass { position: static; width: 100%; }
+@media (max-width: 1450px) { .side-col { display: none; } }
+/* 等待另一位玩家回應：黃色 */
+.plate.responding { opacity: 1; border-color: #ffcf6b; box-shadow: 0 0 0 1px #ffcf6b, 0 0 26px rgba(255, 207, 107, 0.45); animation: wait-pulse 1.4s ease-in-out infinite; }
+.plate.responding .pinfo em, .plate.waiting .pinfo em { color: #ffcf6b; }
+.plate.waiting { border-color: #ffcf6b; }
+.turn-pill.waiting { background: #ffcf6b; color: #2a2000; box-shadow: 0 0 0 3px rgba(255, 207, 107, 0.3), 0 6px 18px rgba(0,0,0,0.5); animation: wait-pulse 1.4s ease-in-out infinite; }
+@keyframes wait-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.72; } }

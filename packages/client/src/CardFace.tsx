@@ -9,6 +9,7 @@ export const BACK_URL = '/card-img/back';
 
 interface ImgProps {
   card?: Card; // 沒給就是牌背
+  uid?: string; // 動畫用：同一張卡在不同區域移動時，靠這個找到它
   landscape?: boolean; // 橫放（名場面、等級區、能量區、回憶區）
   rested?: boolean;
   reversed?: boolean; // 倒置（180 度）
@@ -19,7 +20,7 @@ interface ImgProps {
 }
 
 // 卡片本體：有卡圖用卡圖，沒有就用文字卡面。尺寸由外層決定（填滿）。
-export function CardImg({ card, landscape, rested, reversed, className = '', style, onClick, onPointerDown }: ImgProps) {
+export function CardImg({ card, uid, landscape, rested, reversed, className = '', style, onClick, onPointerDown }: ImgProps) {
   const [broken, setBroken] = useState(false);
   const face = !card ? (
     <img src={BACK_URL} alt="牌背" draggable={false} />
@@ -32,6 +33,7 @@ export function CardImg({ card, landscape, rested, reversed, className = '', sty
     <div
       className={`cimg${landscape ? ' land' : ''}${rested ? ' rested' : ''}${reversed ? ' reversed' : ''}${card ? ` c-${card.color}` : ' back'} ${className}`}
       style={style}
+      data-uid={uid}
       onClick={onClick}
       onPointerDown={onPointerDown}
     >
@@ -67,12 +69,12 @@ export function PowerTag({ card, power, soul }: { card: Card; power?: number; so
 }
 
 // 手牌、彈窗用：卡片＋下方標籤
-export function CardFace({ card, selected, dim, glow, onClick, onPointerDown }: {
-  card: Card; selected?: boolean; dim?: boolean; glow?: boolean; onClick?: () => void; onPointerDown?: (e: PointerEvent) => void;
+export function CardFace({ card, uid, selected, dim, glow, onClick, onPointerDown }: {
+  card: Card; uid?: string; selected?: boolean; dim?: boolean; glow?: boolean; onClick?: () => void; onPointerDown?: (e: PointerEvent) => void;
 }) {
   return (
     <div className={`cardface${selected ? ' selected' : ''}${dim ? ' dim' : ''}${glow ? ' glow' : ''}`} onClick={onClick} onPointerDown={onPointerDown}>
-      <CardImg card={card} />
+      <CardImg card={card} uid={uid} />
       <PowerTag card={card} />
     </div>
   );

@@ -114,17 +114,18 @@ export interface StandbyAbility {
 
 // 等待玩家回應的選擇（待決選擇）
 export type Pending =
-  | { kind: 'mulligan'; player: PlayerId }
+  | { kind: 'mulligan'; player: PlayerId; waiting: PlayerId[] } // 雙方同時換牌：waiting 裡的玩家都可以送出
   | { kind: 'clock'; player: PlayerId }
   | { kind: 'main'; player: PlayerId }
   | { kind: 'climax'; player: PlayerId }
   | { kind: 'attackDeclare'; player: PlayerId }
   | { kind: 'levelUp'; player: PlayerId; options: string[] }
   | { kind: 'encoreChoose'; player: PlayerId; options: string[] }
-  | { kind: 'select'; player: PlayerId; prompt: string; options: string[]; min: number; max: number }
+  | { kind: 'select'; player: PlayerId; prompt: string; options: string[]; min: number; max: number; shown?: string[] } // shown：一起顯示的卡（例如看牌組上方 N 張時，全部翻開的牌）
+  | { kind: 'acknowledge'; player: PlayerId; prompt: string; cards: string[] } // 對手公開的卡：看過按確認
   | { kind: 'confirm'; player: PlayerId; prompt: string }
   | { kind: 'chooseSlot'; player: PlayerId; prompt: string; slots: Slot[] }
-  | { kind: 'orderAbility'; player: PlayerId; options: { id: number; uid: string; text: string }[] }
+  | { kind: 'orderAbility'; player: PlayerId; options: { id: number; uid: string; text: string }[]; canSkip: boolean } // canSkip：全部都是可以不發動的能力
   | { kind: 'counter'; player: PlayerId; options: string[] }
   | { kind: 'handLimit'; player: PlayerId; count: number }
   | { kind: 'pick'; player: PlayerId; reason: 'comeback' | 'gate' | 'choice'; options: string[]; dests: ('hand' | 'stock')[] }
