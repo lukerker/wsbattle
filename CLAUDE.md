@@ -43,6 +43,7 @@ BanG Dream（MyGO × Ave Mujica 彈）、Girls Band Cry、莉可麗絲、鏈鋸�
 - 規則由伺服器判定，客戶端只送出操作；手牌、牌庫只存在伺服器端，傳給每位玩家前先過濾（`viewFor`）；觀戰者只拿公開版本
 - 引擎不綁任何平台：`packages/engine/src/session/` 是不碰網路的房間邏輯（`GameRoom`、`RoomManager`），伺服器和測試共用；訊息格式在 `protocol.ts`
 - Render 免費方案閒置 15 分鐘休眠、喚醒約 1 分鐘：前端進網頁先打 `/health` 喚醒，連線中每 25 秒 ping。休眠或重啟會丟掉記憶體裡的房間；之後要存「種子＋雙方牌組＋所有操作」到 Firestore 還原
+- 正式網址：前端 https://wsbattle-553dc.web.app （Firebase Hosting），伺服器 https://wsbattle.onrender.com （Render，推 GitHub main 自動部署）；GitHub：lukerker/wsbattle（私人）
 - 設定與部署步驟見 `docs/部署與設定.md`
 
 ## 規則引擎原則
@@ -89,8 +90,8 @@ packages/client
 
 ## 版權
 
-卡圖、卡名、角色形象屬於版權方。程式只存卡號和效果資料，卡圖是獨立欄位、可替換（文字卡面，或玩家自己上傳）。
-不要把官方卡圖放在公開網址上，也不開放陌生人註冊。
+卡圖、卡名、角色形象屬於版權方。本專案只給使用者和兩三個朋友私下玩（使用者的決定）：卡圖跟著前端部署到 Firebase Hosting，網址不公開、全站 noindex、robots.txt 禁止收錄。
+卡圖（`cards/`）不進 GitHub；部署時從本機打包上傳。程式只存卡號和效果資料，圖抓不到時自動改用文字卡面。
 
 ## 開發階段
 
@@ -109,5 +110,6 @@ packages/client
 - `npm run dev --workspace @ws/server`：啟動對戰伺服器（埠 8787）；`npm run dev --workspace @ws/client`：啟動前端（http://localhost:5173），卡圖由開發伺服器從 `cards/` 提供。兩個要同時開；沒設 Firebase 時是測試登入，開兩個分頁就是兩位玩家，第三個分頁可以測觀戰
 - `npm test`：跑引擎、卡片效果、房間與連線的測試
 - `npm run typecheck`：型別檢查（engine）
+- 部署前端：`npm run build --workspace @ws/client` 後 `npx firebase-tools deploy --only hosting`（要在有 `cards/` 的這台電腦做）；伺服器：`git push` 到 main，Render 自動部署
 - `node scripts/build-review.ts BTR-W107`：產生 `docs/review/` 的三欄核對表
 - PowerShell 5.1 的 `Set-Content/Add-Content -Encoding utf8` 會加 BOM，寫 JSON 檔要用 Write 工具或 .NET UTF8Encoding(false)
