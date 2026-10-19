@@ -56,7 +56,7 @@ const concentrate = (ja: string, zh: string): Ability => ({
   text: t(ja, zh),
 });
 
-const pending = { translated: true, coded: true, verified: false, tested: false };
+const pending = { translated: true, coded: true, verified: false, tested: true }; // 情境測試：game/cards-*.test.ts
 
 export const cards: Card[] = [
   {
@@ -425,7 +425,7 @@ export const cards: Card[] = [
   },
   {
     id: 'BD/W125-T18', series: SERIES, name: t('黒のバースデイ', '黑色生日'),
-    type: 'climax', color: 'red', triggers: ['gate'], traits: [],
+    type: 'climax', color: 'red', triggers: ['comeback'], traits: [],
     abilities: [{
       kind: 'continuous',
       effects: [

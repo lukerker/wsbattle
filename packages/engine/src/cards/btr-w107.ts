@@ -42,7 +42,7 @@ const encore = (discard: Selector, ja: string, zh: string): Ability => ({
   text: t(ja, zh),
 });
 
-const pending = { translated: true, coded: true, verified: false, tested: false };
+const pending = { translated: true, coded: true, verified: false, tested: true }; // 情境測試：game/cards-*.test.ts
 
 export const cards: Card[] = [
   {

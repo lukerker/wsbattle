@@ -3,7 +3,21 @@
 
 export type Color = 'yellow' | 'red' | 'blue' | 'green' | 'purple' | 'colorless';
 export type CardType = 'character' | 'event' | 'climax';
-export type TriggerIcon = 'soul' | 'choice' | 'book' | 'gate' | 'treasure' | 'wind' | 'standby' | 'bag' | 'shot' | 'pool';
+// 判定圖示，依總合規則 4.14.2
+export type TriggerIcon =
+  | 'soul' // ソウル：攻擊角色魂傷 +1
+  | 'return' // リターン：對手角色回手
+  | 'pool' // プール：牌組頂 → 能量
+  | 'comeback' // カムバック（門形）：休息室角色 → 手牌
+  | 'draw' // ドロー：抽 1
+  | 'shot' // ショット
+  | 'treasure' // トレジャー：此卡回手，可牌組頂 → 能量
+  | 'gate' // ゲート：休息室名場面 → 手牌
+  | 'standby' // スタンバイ
+  | 'choice' // チョイス：休息室有魂圖示的角色 → 手牌或能量
+  | 'chance' // チャンス
+  | 'discovery' // ディスカバリー
+  | 'focus'; // フォーカス
 
 export interface Text {
   ja: string;

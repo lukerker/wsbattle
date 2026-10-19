@@ -31,6 +31,8 @@ button { font: inherit; color: inherit; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  user-select: none; /* 遊戲畫面：拖曳時不要選到文字 */
+  -webkit-user-select: none;
   background: radial-gradient(ellipse 80% 70% at 55% 50%, #1a2130 0%, var(--bg) 70%);
 }
 
@@ -310,4 +312,35 @@ button { font: inherit; color: inherit; }
   .info-cols .abilities p, .info-note p { font-size: 12px; line-height: 1.5; margin-bottom: 4px; }
   .dialog.detail { gap: 12px; }
   .detail-img { width: 100px; }
+}
+/* ───── 接上引擎後的狀態 ───── */
+.cimg.reversed { transform: rotate(180deg); }
+.zone.glow { box-shadow: 0 0 0 2px #ffcf6b, 0 0 16px rgba(255, 207, 107, 0.55); }
+.cardface.glow .cimg-in { box-shadow: 0 0 0 2px #ffcf6b, 0 0 12px rgba(255, 207, 107, 0.5); }
+.ptag b.up { color: #8ef0a0; }
+.ptag b.down { color: #ff9a9a; }
+.selftest { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; cursor: pointer; }
+.vs b { color: var(--text); }
+
+.sheet.prompt { max-height: 62dvh; overflow-y: auto; }
+.sheet.prompt h3 { font-size: 15px; line-height: 1.5; white-space: pre-line; }
+.sheet .opts { --u: 66px; display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 4px; }
+.sheet .opts .cardface:hover { transform: none; }
+.prompt-text { white-space: pre-line; line-height: 1.6; }
+.order-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.order-item { text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.order-item:hover { border-color: var(--accent); }
+.order-item span { font-size: 13px; color: #c4cad6; line-height: 1.5; }
+
+.handoff { position: fixed; inset: 0; z-index: 55; display: grid; place-items: center; background: rgba(8, 10, 14, 0.92); backdrop-filter: blur(6px); }
+.handoff-box { text-align: center; padding: 28px 32px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); max-width: min(480px, 92vw); }
+.handoff-box .who { font-size: 22px; font-weight: 800; margin: 0 0 8px; }
+.handoff-box p { margin: 6px 0; line-height: 1.6; }
+.handoff-box .btn { margin-top: 12px; padding: 10px 20px; font-size: 15px; }
+
+@media (max-height: 520px) {
+  .selftest { display: none; }
+  .sheet .opts { --u: 46px; gap: 6px; }
+  .sheet.prompt { max-height: 80dvh; }
+  .sheet.prompt h3 { font-size: 13px; }
 }
