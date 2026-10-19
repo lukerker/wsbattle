@@ -1,7 +1,7 @@
 // 畫面用的資料：卡片資料庫、系列主題色、系統預組、階段名稱與提示。
-import { bdW125, btrW107, type Card, type Phase } from '@ws/engine';
+import { bdW125, btrW107, gcrSE48, type Card, type Phase } from '@ws/engine';
 
-export const cardById = new Map<string, Card>([...btrW107.cards, ...bdW125.cards].map((c) => [c.id, c]));
+export const cardById = new Map<string, Card>([...btrW107.cards, ...bdW125.cards, ...gcrSE48.cards].map((c) => [c.id, c]));
 
 const list = (d: { cardId: string; count: number }[]) => d.flatMap((x) => Array<string>(x.count).fill(x.cardId));
 
@@ -9,6 +9,7 @@ const list = (d: { cardId: string; count: number }[]) => d.flatMap((x) => Array<
 export const SERIES: Record<string, { label: string; accent: string }> = {
   BTR: { label: '孤獨搖滾', accent: '#e0587f' },
   BD: { label: 'Ave Mujica', accent: '#c23a52' },
+  GCR: { label: 'Girls Band Cry', accent: '#f26b2a' },
 };
 export const seriesInfo = (code: string) => SERIES[code] ?? { label: code, accent: '#8f99ad' };
 
@@ -23,6 +24,7 @@ export interface DeckInfo {
 export const PRESET_DECKS: DeckInfo[] = [
   { id: 'preset-BTR-W107', name: '孤獨搖滾 預組', series: 'BTR', cards: list(btrW107.deck), preset: true },
   { id: 'preset-BD-W125', name: 'Ave Mujica 預組', series: 'BD', cards: list(bdW125.deck), preset: true },
+  { id: 'preset-GCR-SE48', name: 'Girls Band Cry 預組', series: 'GCR', cards: list(gcrSE48.deck), preset: true },
 ];
 
 export const PHASES: { id: Phase; name: string; hint: string }[] = [

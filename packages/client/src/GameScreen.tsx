@@ -533,7 +533,11 @@ function PromptSheet({ pending: p, view, seat, act, name, cardOf: cardLookup }: 
       break;
     }
     case 'chooseSlot':
-      buttons = p.slots.map((slot) => <button key={slot} className="btn primary" onClick={() => act({ type: 'chooseSlot', player, slot })}>{SLOT_NAME[slot]}</button>);
+      buttons = p.slots.map((slot) => (
+        <button key={slot} className="btn primary" onClick={() => act({ type: 'chooseSlot', player, slot })}>
+          {p.owner !== undefined && p.owner !== player ? '對手的' : ''}{SLOT_NAME[slot]}
+        </button>
+      ));
       break;
     case 'orderAbility':
       body = (

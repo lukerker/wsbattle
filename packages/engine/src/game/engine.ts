@@ -195,6 +195,10 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     });
   }
 
+  // 有效的【永】「此卡不能側打」
+  const cannotSideAttack = (s: GameState, uid: string) =>
+    fx.activeContinuous(s).some((a) => a.src === uid && a.ability.rules?.includes('cannotSideAttack'));
+
   const attackable = (s: GameState): Slot[] => {
     if (s.turn === 1 && s.attacksThisTurn >= 1) return []; // 先攻第 1 回合只能攻擊 1 次〔7.2.1.3.1.2〕
     return FRONT.filter((i) => s.players[s.turnPlayer].stage[i]?.state === 'stand');
@@ -255,14 +259,20 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         return;
       case 'trigger': {
         // 判定：牌組最上面 1 張翻到解決領域，執行判定圖示，再放進能量區〔7.3.1.2〕
+        const n = step.n ?? 1;
+        const more: Step[] = n < (s.attack?.checks ?? 1) ? [{ k: 'trigger', n: n + 1 }] : []; // 「判定 2 次」的效果
         refreshIfNeeded(ctx, tp);
         const uid = me.deck[0];
-        if (!uid) return;
+        if (!uid) {
+          then(s, ...more);
+          return;
+        }
         move(ctx, uid, tp, 'deck', 'resolution');
         refreshIfNeeded(ctx, tp);
         const icons = [...cardOf(s, uid).triggers];
         ctx.ev.push({ t: 'trigger', uid, cardId: s.cards[uid]!.cardId, icons });
-        then(s, ...icons.map((icon) => ({ k: 'icon' as const, icon, uid })), { k: 'toStock', uid });
+        fx.fireGlobal(s, 'myTriggerChecked', uid);
+        then(s, ...icons.map((icon) => ({ k: 'icon' as const, icon, uid })), { k: 'toStock', uid }, ...more);
         return;
       }
       case 'icon':
@@ -334,8 +344,8 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         return;
       case 'endPhaseCleanup':
         for (const u of [...me.climax]) move(ctx, u, tp, 'climax', 'waiting'); // 〔6.8.1.3〕
-        // 「那個回合中」的效果消失〔6.8.1.4〕
-        s.mods = [];
+        // 「那個回合中」的效果消失〔6.8.1.4〕；「到下次的對手回合結束前」的留到那個回合
+        s.mods = s.mods.filter((m) => m.until !== undefined && m.until > s.turn);
         s.grants = [];
         s.placedThisTurn = [];
         s.turnPlayer = other(tp);
@@ -518,6 +528,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         if (!defender) mode = 'direct'; // 正面沒有角色就是直接攻擊〔7.2.1.4.1〕
         else if (mode === 'direct') return '正面有角色，只能選正打或側打';
         const attacker = pl.stage[a.slot]!;
+        if (mode === 'side' && cannotSideAttack(s, attacker.uid)) return '這張卡不能側打';
         if (mode === 'direct') s.mods.push({ uid: attacker.uid, power: 0, soul: 1 });
         if (mode === 'side') {
           const lv = cardOf(s, defender!.uid).level ?? 0;
@@ -759,8 +770,10 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         break;
       case 'attackDeclare':
         for (const slot of attackable(s)) {
-          if (s.players[other(player)].stage[facing(slot)]) out.push({ type: 'attack', player, slot, mode: 'front' }, { type: 'attack', player, slot, mode: 'side' });
-          else out.push({ type: 'attack', player, slot, mode: 'direct' });
+          if (s.players[other(player)].stage[facing(slot)]) {
+            out.push({ type: 'attack', player, slot, mode: 'front' });
+            if (!cannotSideAttack(s, pl.stage[slot]!.uid)) out.push({ type: 'attack', player, slot, mode: 'side' });
+          } else out.push({ type: 'attack', player, slot, mode: 'direct' });
         }
         out.push({ type: 'pass', player });
         break;

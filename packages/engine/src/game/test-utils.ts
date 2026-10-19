@@ -2,10 +2,11 @@
 import type { Card } from '../card-schema.ts';
 import * as bd from '../cards/bd-w125.ts';
 import * as btr from '../cards/btr-w107.ts';
+import * as gcr from '../cards/gcr-se48.ts';
 import { createEngine } from './engine.ts';
 import type { Action, GameState, PlayerId, Slot } from './types.ts';
 
-export const db = new Map<string, Card>([...btr.cards, ...bd.cards].map((c) => [c.id, c]));
+export const db = new Map<string, Card>([...btr.cards, ...bd.cards, ...gcr.cards].map((c) => [c.id, c]));
 export const E = createEngine(db);
 const list = (d: { cardId: string; count: number }[]) => d.flatMap((x) => Array<string>(x.count).fill(x.cardId));
 export const DECKS: [string[], string[]] = [list(btr.deck), list(bd.deck)];
@@ -49,8 +50,9 @@ export function top(s: GameState, p: PlayerId, ids: string[]): string[] {
 }
 
 // 乾淨的局面：雙方所有卡都在牌組，玩家 0 的第 3 回合主要階段
-export function scene(seed = 11): GameState {
-  let s = E.newGame({ seed, decks: DECKS }).state;
+export const GCR_DECK = list(gcr.deck);
+export function scene(seed = 11, decks: [string[], string[]] = DECKS): GameState {
+  let s = E.newGame({ seed, decks }).state;
   s = ok(s, { type: 'mulligan', player: s.firstPlayer, discard: [] });
   s = ok(s, { type: 'mulligan', player: (1 - s.firstPlayer) as PlayerId, discard: [] });
   s = ok(s, { type: 'clock', player: s.turnPlayer, uid: null });

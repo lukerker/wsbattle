@@ -35,6 +35,9 @@ export interface CardFilter {
   costAtMost?: number;
   row?: 'front' | 'back';
   excludeSource?: boolean; // 「其他的」＝不含發動這個能力的卡本身
+  levelAtLeast?: number; // 等級 N 以上（名場面視為等級 0）
+  hasTrigger?: TriggerIcon; // 有這個判定圖示
+  anyOf?: CardFilter[]; // 符合其中一個即可（例：《音樂》的角色或事件）
 }
 
 export type Count = { exactly: number } | { upTo: number } | 'all';
@@ -72,7 +75,9 @@ export type Condition =
   | { kind: 'stockAtMost'; n: number }
   | { kind: 'countAtLeast'; selector: Selector; n: number }
   | { kind: 'countAtMost'; selector: Selector; n: number }
-  | { kind: 'climaxInZone'; name: string }
+  | { kind: 'climaxInZone'; name?: string } // 沒給名稱＝名場面區有任何名場面
+  | { kind: 'sourceInSlot'; slots: number[] } // 此卡在指定的格子（0～2 前列左中右、3～4 後列）
+  | { kind: 'opponentInFront' } // 此卡的正面有對手的角色
   | { kind: 'myTurn' };
 
 export type Cost =
@@ -81,9 +86,10 @@ export type Cost =
   | { kind: 'discard'; selector: Selector }
   | { kind: 'discardSource' } // 助太刀：手牌的此卡放到休息室
   | { kind: 'sendSourceToWaitingRoom' } // 從舞台把此卡放到休息室
-  | { kind: 'rest'; selector: Selector }; // 把其他卡橫置
+  | { kind: 'rest'; selector: Selector } // 把其他卡橫置
+  | { kind: 'sourceToDeckBottom' }; // 把舞台上的此卡放到牌組下方
 
-export type Duration = 'whileActive' | 'thisTurn';
+export type Duration = 'whileActive' | 'thisTurn' | 'untilNextOpponentTurnEnd'; // 最後一個：到下次的對手回合結束前
 
 export type Effect =
   | { op: 'modifyPower'; target: Selector; amount: Amount; duration: Duration }
@@ -94,13 +100,15 @@ export type Effect =
       to: { zone: Zone; side?: Side; position?: 'top' | 'bottom'; state?: 'stand' | 'rest'; slot?: 'empty' };
       bind?: string; // 把移動的卡綁成名稱，供後續步驟使用
     }
-  | { op: 'draw'; upTo: Amount }
+  | { op: 'draw'; upTo: Amount } // 最多抽 N 張（每張都問）
+  | { op: 'drawCards'; n: number } // 抽 N 張（一定要抽）
   | {
       // 看牌組上方 N 張，選符合條件的至多 M 張（公開）加入手牌，其餘放休息室
       op: 'lookTopPick';
-      look: number;
+      look: number | Amount;
       pick: { filter: CardFilter; upTo: number };
       rest: 'waitingRoom' | 'back';
+      secret?: true; // 卡面沒寫「給對手確認」：拿的卡不公開
       then?: Effect[]; // 有加入手牌時才執行
     }
   | { op: 'searchDeck'; filter: CardFilter; upTo: number; reveal: true; shuffle: boolean }
@@ -109,11 +117,15 @@ export type Effect =
   | { op: 'returnSourceToSlot'; state: 'rest' } // 安可：橫置放回原位
   | { op: 'putCardOnDeckTop'; from: Selector }
   | { op: 'restSource' } // 把此卡橫置（效果，非費用）
-  | { op: 'dealDamage'; amount: number; cancelable: boolean }
+  | { op: 'dealDamage'; amount: Amount; cancelable: boolean }
   | { op: 'moveSourceToSlot'; row: 'front'; emptyOnly: true }
   | { op: 'grantAbility'; target: Selector; ability: Ability; duration: Duration }
   | { op: 'sendToMemory'; from: Selector } // 放到回憶區（思い出）
-  | { op: 'payThen'; cost: Cost[]; then: Effect[] }; // 效果中途的「可以支付代價，支付了的話…」（先問、再付、再結算 then）
+  | { op: 'payThen'; cost: Cost[]; then: Effect[] } // 效果中途的「可以支付代價，支付了的話…」（先問、再付、再結算 then）
+  | { op: 'extraTriggerCheck' } // 這次攻擊的判定步驟做 2 次判定
+  | { op: 'moveToOtherEmptySlot'; target: Selector } // 選 1 張角色，移到它主人舞台上其他沒有角色的格子
+  | { op: 'lookTopHandAndStock'; look: number; filter: CardFilter } // 看牌組上方 N 張，選符合條件的最多 2 張給對手確認，1 張加到手牌、1 張放到能量區，其餘放休息室
+  | { op: 'lookOpponentTopPlace' }; // 看對手牌組上方 1 張，放回上方或下方
 
 export type TriggerEvent =
   | { event: 'placedFromHandToStage' } // 此卡從手牌放置到舞台時
@@ -127,7 +139,8 @@ export type TriggerEvent =
   | { event: 'damageNotCancelledInBattle' } // 此卡的戰鬥中，己方受到的傷害沒有被取消時
   | { event: 'encoreStepStart'; side: Side }
   | { event: 'myClimaxPhaseStart' }
-  | { event: 'opponentAttackPhaseStart' };
+  | { event: 'opponentAttackPhaseStart' }
+  | { event: 'myTriggerChecked'; filter?: CardFilter }; // 你的判定翻出符合條件的卡時
 
 export type Keyword =
   | { id: 'assist' } // 應援（【永】，效果本身用 modifyPower 描述）
@@ -145,7 +158,7 @@ export interface Ability {
   condition?: Condition;
   cost?: Cost[];
   optional?: boolean; // 「可以」類：先檢查付不付得起，再問玩家
-  rules?: 'ignoreColorRequirement'[]; // 改變出牌規則的能力（例：不需滿足顏色條件）
+  rules?: ('ignoreColorRequirement' | 'cannotSideAttack')[]; // 改變規則的能力：不需滿足顏色條件、不能側打
   effects: Effect[];
   text: Text;
   review?: string[]; // 需要使用者核對的疑點

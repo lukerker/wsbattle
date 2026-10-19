@@ -1,12 +1,12 @@
 // 回合流程的整體檢查：一位玩家把整個回合跑完才換人、每回合都抽牌、先攻第 1 回合只能攻擊 1 次。
 import { describe, expect, it } from 'vitest';
-import { E, DECKS, choose, ok, oppTurn, order, put, scene, top, yes } from './test-utils.ts';
+import { E, DECKS, GCR_DECK, choose, ok, oppTurn, order, put, scene, top, yes } from './test-utils.ts';
 import type { GameState, PlayerId } from './types.ts';
 
 const ORDER = ['stand', 'draw', 'clock', 'main', 'climax', 'attack', 'encore', 'end'];
 
-function randomGame(seed: number) {
-  let s = E.newGame({ seed, decks: DECKS }).state;
+function randomGame(seed: number, decks: [string[], string[]] = DECKS) {
+  let s = E.newGame({ seed, decks }).state;
   const bot = { r: seed * 7919 };
   const rand = (n: number) => {
     bot.r = (bot.r * 1103515245 + 12345) % 2147483648;
@@ -19,6 +19,7 @@ function randomGame(seed: number) {
     const a = pass && rand(3) === 0 ? pass : legal[rand(legal.length)]!;
     const before: GameState = s;
     const r = E.apply(s, a);
+    expect(r.error, `合法動作被拒絕：${JSON.stringify(a)}`).toBeUndefined();
     s = r.state;
     for (const e of r.events) {
       if (e.t !== 'phase') continue;
@@ -40,6 +41,14 @@ describe('回合流程', () => {
       expect(t.phases).toEqual(ORDER);
     }
     for (let i = 1; i < turns.length; i++) expect(turns[i]!.player).not.toBe(turns[i - 1]!.player);
+  });
+
+  it.each([1, 2, 3, 4, 5, 6, 7, 8])('Girls Band Cry 隨機對打（種子 %i）：每個合法動作都能執行，回合流程正確', (seed) => {
+    for (const decks of [[GCR_DECK, DECKS[1]], [DECKS[0], GCR_DECK]] as [string[], string[]][]) {
+      const turns = randomGame(seed, decks);
+      expect(turns.length).toBeGreaterThan(4);
+      for (const t of turns.slice(0, -1)) expect(t.phases).toEqual(ORDER);
+    }
   });
 
   it('每個回合開始都會抽 1 張（含先攻玩家的第 1 回合）〔6.3〕', () => {

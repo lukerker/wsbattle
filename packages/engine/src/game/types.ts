@@ -36,6 +36,7 @@ export interface TurnMod {
   uid: string;
   power: number;
   soul: number;
+  until?: number; // 持續到第幾回合結束（沒給＝這個回合）
 }
 
 export interface AttackInfo {
@@ -43,6 +44,7 @@ export interface AttackInfo {
   slot: Slot;
   mode: AttackMode;
   defender: string | null;
+  checks?: number; // 判定步驟要做幾次判定（預設 1）
 }
 
 // 引擎內部待執行的步驟（堆疊，最後一個先執行）
@@ -53,7 +55,7 @@ export type Step =
   | { k: 'mainPhase' }
   | { k: 'climaxPhase' }
   | { k: 'attackDeclare' }
-  | { k: 'trigger' }
+  | { k: 'trigger'; n?: number } // 第幾次判定（1 開始）
   | { k: 'icon'; icon: string; uid: string }
   | { k: 'toStock'; uid: string }
   | { k: 'counter' }
@@ -88,6 +90,7 @@ export type InternalOp =
   | { op: '_restSource' }
   | { op: '_sendSourceToWR' }
   | { op: '_rest'; selector: Selector }
+  | { op: '_sourceToDeckBottom' }
   | { op: '_fireUsedBackup' }
   | { op: '_eventDone' };
 
@@ -124,7 +127,7 @@ export type Pending =
   | { kind: 'select'; player: PlayerId; prompt: string; options: string[]; min: number; max: number; shown?: string[] } // shown：一起顯示的卡（例如看牌組上方 N 張時，全部翻開的牌）
   | { kind: 'acknowledge'; player: PlayerId; prompt: string; cards: string[] } // 對手公開的卡：看過按確認
   | { kind: 'confirm'; player: PlayerId; prompt: string }
-  | { kind: 'chooseSlot'; player: PlayerId; prompt: string; slots: Slot[] }
+  | { kind: 'chooseSlot'; player: PlayerId; prompt: string; slots: Slot[]; owner?: PlayerId } // owner：格子是誰的舞台（沒給＝選擇的人自己）
   | { kind: 'orderAbility'; player: PlayerId; options: { id: number; uid: string; text: string }[]; canSkip: boolean } // canSkip：全部都是可以不發動的能力
   | { kind: 'counter'; player: PlayerId; options: string[] }
   | { kind: 'handLimit'; player: PlayerId; count: number }

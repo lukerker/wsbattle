@@ -108,7 +108,13 @@ export function createEffects(core: Core) {
       case 'noOthers':
         return candidates(s, c.selector, src, controller, fctx).length === 0;
       case 'climaxInZone':
-        return pl.climax.some((u) => cardOf(s, u).name.ja === c.name);
+        return pl.climax.some((u) => c.name === undefined || cardOf(s, u).name.ja === c.name);
+      case 'sourceInSlot':
+        return c.slots.includes(pl.stage.findIndex((x) => x?.uid === src));
+      case 'opponentInFront': {
+        const slot = pl.stage.findIndex((x) => x?.uid === src);
+        return slot >= 0 && slot < 3 && !!s.players[other(controller)].stage[2 - slot];
+      }
       case 'placedThisTurnFromHand':
         return s.placedThisTurn.includes(src) && onStage(s, src);
       case 'battleOpponentLevelAtMost': {
@@ -131,6 +137,9 @@ export function createEffects(core: Core) {
   function filterOk(s: GameState, uid: string, f: CardFilter | undefined, src: string): boolean {
     if (!f) return true;
     const c = cardOf(s, uid);
+    if (f.anyOf && !f.anyOf.some((x) => filterOk(s, uid, x, src))) return false;
+    if (f.levelAtLeast !== undefined && (c.type === 'climax' ? 0 : (c.level ?? 0)) < f.levelAtLeast) return false;
+    if (f.hasTrigger && !c.triggers.includes(f.hasTrigger)) return false;
     if (f.type && c.type !== f.type) return false;
     if (f.color && c.color !== f.color) return false;
     if (f.trait && !c.traits.some((t) => t.ja === f.trait)) return false;
@@ -215,7 +224,7 @@ export function createEffects(core: Core) {
       if (c.kind === 'stock') stock += c.n;
       if (c.kind === 'restSource' && pl.stage.find((x) => x?.uid === src)?.state !== 'stand') return false;
       if (c.kind === 'discardSource' && !pl.hand.includes(src)) return false;
-      if (c.kind === 'sendSourceToWaitingRoom' && !onStage(s, src)) return false;
+      if ((c.kind === 'sendSourceToWaitingRoom' || c.kind === 'sourceToDeckBottom') && !onStage(s, src)) return false;
       if (c.kind === 'discard' || c.kind === 'rest') {
         const need = c.selector.count === 'all' ? 0 : 'exactly' in c.selector.count ? c.selector.count.exactly : 0;
         const cands = candidates(s, c.selector, src, controller, {}).filter((u) => !(c.kind === 'discard' && u === src));
@@ -233,6 +242,7 @@ export function createEffects(core: Core) {
         case 'discardSource': return { op: '_discardSource' };
         case 'sendSourceToWaitingRoom': return { op: '_sendSourceToWR' };
         case 'rest': return { op: '_rest', selector: c.selector };
+        case 'sourceToDeckBottom': return { op: '_sourceToDeckBottom' };
       }
     });
 
@@ -248,7 +258,8 @@ export function createEffects(core: Core) {
   }
 
   // 與時點有關的誘發（階段開始時、名場面放置時…）：檢查雙方舞台上的角色
-  function fireGlobal(s: GameState, event: 'climaxPlaced' | 'encoreStepStart' | 'myClimaxPhaseStart' | 'opponentAttackPhaseStart', climax?: string) {
+  // card：名場面放置時是那張名場面，判定時是翻出來的卡
+  function fireGlobal(s: GameState, event: 'climaxPlaced' | 'encoreStepStart' | 'myClimaxPhaseStart' | 'opponentAttackPhaseStart' | 'myTriggerChecked', card?: string) {
     for (const p of [s.turnPlayer, other(s.turnPlayer)]) {
       for (const c of s.players[p].stage) {
         if (!c) continue;
@@ -256,10 +267,11 @@ export function createEffects(core: Core) {
           const t = a.trigger;
           if (a.kind !== 'auto' || !t || t.event !== event) continue;
           if (t.event === 'climaxPlaced') {
-            const owner = locate(s, climax!)?.p;
+            const owner = locate(s, card!)?.p;
             if ((t.side === 'self') !== (owner === p)) continue;
-            if (!filterOk(s, climax!, t.filter, c.uid)) continue;
+            if (!filterOk(s, card!, t.filter, c.uid)) continue;
           }
+          if (t.event === 'myTriggerChecked' && (s.turnPlayer !== p || !filterOk(s, card!, t.filter, c.uid))) continue;
           if (t.event === 'encoreStepStart' && t.side === 'self' && s.turnPlayer !== p) continue;
           if (t.event === 'myClimaxPhaseStart' && s.turnPlayer !== p) continue;
           if (t.event === 'opponentAttackPhaseStart' && s.turnPlayer === p) continue;
@@ -409,6 +421,9 @@ export function createEffects(core: Core) {
       case '_sendSourceToWR':
         if (onStage(s, f.src)) moveTo(ctx, f.src, 'waiting');
         return 'done';
+      case '_sourceToDeckBottom':
+        if (onStage(s, f.src)) moveTo(ctx, f.src, 'deck'); // 不指定上方＝放到最下面
+        return 'done';
       case '_rest': {
         const picked = pick(ctx, f, e.selector, '選擇要橫置的角色');
         if (!picked) return 'wait';
@@ -434,10 +449,12 @@ export function createEffects(core: Core) {
         if (e.duration === 'whileActive') return 'done'; // 【永】在計算時處理
         const picked = pick(ctx, f, e.target, '選擇角色');
         if (!picked) return 'wait';
+        // 「到下次的對手回合結束前」：現在是自己的回合就是下一回合，是對手的回合就是下下回合
+        const until = e.duration === 'untilNextOpponentTurnEnd' ? s.turn + (s.turnPlayer === f.controller ? 1 : 2) : undefined;
         for (const u of picked) {
           if (!onStage(s, u)) continue;
           const n = e.op === 'modifyPower' ? amountOf(s, e.amount, f.src, f.controller, f.binds, u) : e.amount;
-          s.mods.push({ uid: u, power: e.op === 'modifyPower' ? n : 0, soul: e.op === 'modifySoul' ? n : 0 });
+          s.mods.push({ uid: u, power: e.op === 'modifyPower' ? n : 0, soul: e.op === 'modifySoul' ? n : 0, ...(until ? { until } : {}) });
         }
         return 'done';
       }
@@ -485,18 +502,18 @@ export function createEffects(core: Core) {
       case 'lookTopPick': {
         // 看牌組上方 N 張：一定把翻開的牌給玩家看（只有自己看得到），沒有符合的也要看過再放到休息室
         if (!f.tmp.done) {
-          const looked = me.deck.slice(0, e.look);
+          const looked = me.deck.slice(0, typeof e.look === 'number' ? e.look : amountOf(s, e.look, f.src, f.controller, f.binds));
           if (!looked.length) return 'done';
           const matches = looked.filter((u) => filterOk(s, u, e.pick.filter, f.src));
           const prompt = matches.length
-            ? `${f.label}：牌組上方 ${looked.length} 張，可以選最多 ${e.pick.upTo} 張給對手確認後加到手牌，其餘放到休息室`
+            ? `${f.label}：牌組上方 ${looked.length} 張，可以選最多 ${e.pick.upTo} 張${e.secret ? '' : '給對手確認後'}加到手牌，其餘放到休息室`
             : `${f.label}：牌組上方 ${looked.length} 張裡沒有可以拿的卡，全部放到休息室`;
           const picked = ask(ctx, f, 'sel', {
             kind: 'select', player: f.controller, prompt, options: matches, min: 0, max: Math.min(e.pick.upTo, matches.length), shown: looked,
           }) as string[] | undefined;
           if (!picked) return 'wait';
           for (const u of picked) {
-            ctx.ev.push({ t: 'reveal', uid: u, cardId: s.cards[u]!.cardId });
+            if (!e.secret) ctx.ev.push({ t: 'reveal', uid: u, cardId: s.cards[u]!.cardId });
             core.move(ctx, u, f.controller, 'deck', 'hand');
           }
           for (const u of looked) if (!picked.includes(u) && e.rest === 'waitingRoom') core.move(ctx, u, f.controller, 'deck', 'waiting');
@@ -505,7 +522,7 @@ export function createEffects(core: Core) {
           f.tmp.picked = picked;
         }
         const picked = f.tmp.picked as string[];
-        if (picked.length && !showOpponent(ctx, f, picked, '加到手牌')) return 'wait';
+        if (picked.length && !e.secret && !showOpponent(ctx, f, picked, '加到手牌')) return 'wait';
         return picked.length && e.then ? [sub(f, e.then)] : 'done';
       }
       case 'searchDeck': {
@@ -558,9 +575,14 @@ export function createEffects(core: Core) {
       }
       case 'restSource':
         return exec(ctx, f, { op: '_restSource' });
-      case 'dealDamage':
+      case 'dealDamage': {
         // 傷害處理〔4.12〕；會發生傷害取消
-        return [{ k: 'damage', p: other(f.controller), n: e.amount }];
+        const n = amountOf(s, e.amount, f.src, f.controller, f.binds);
+        return n > 0 ? [{ k: 'damage', p: other(f.controller), n }] : 'done';
+      }
+      case 'drawCards':
+        for (let i = 0; i < e.n; i++) core.drawOne(ctx, f.controller);
+        return 'done';
       case 'moveSourceToSlot': {
         const from = me.stage.findIndex((c) => c?.uid === f.src);
         if (from < 0) return 'done';
@@ -591,6 +613,71 @@ export function createEffects(core: Core) {
         const ok = confirm(ctx, f, `${f.label}：要支付費用並繼續嗎？`);
         if (ok === undefined) return 'wait';
         return ok ? [sub(f, [...costOps(e.cost), ...e.then])] : 'done';
+      }
+      case 'extraTriggerCheck':
+        if (s.attack) s.attack.checks = 2;
+        return 'done';
+      case 'moveToOtherEmptySlot': {
+        const picked = pick(ctx, f, e.target, '選擇要移動的角色');
+        if (!picked) return 'wait';
+        const uid = picked[0];
+        const loc = uid ? locate(s, uid) : null;
+        if (!uid || loc?.zone !== 'stage') return 'done';
+        const stage = s.players[loc.p].stage;
+        const empty = ([0, 1, 2, 3, 4] as Slot[]).filter((i) => !stage[i]);
+        if (!empty.length) return 'done';
+        const slot = empty.length === 1 ? empty[0] : (ask(ctx, f, 'slot', { kind: 'chooseSlot', player: f.controller, owner: loc.p, prompt: `${f.label}：選擇要移動到的格子`, slots: empty }) as Slot | undefined);
+        if (slot === undefined) return 'wait';
+        stage[slot] = stage[loc.slot!]!;
+        stage[loc.slot!] = null;
+        ctx.ev.push({ t: 'move', uid, cardId: s.cards[uid]!.cardId, from: { p: loc.p, zone: 'stage', slot: loc.slot! }, to: { p: loc.p, zone: 'stage', slot } });
+        return 'done';
+      }
+      case 'lookTopHandAndStock': {
+        // 看上方 N 張 → 選最多 2 張給對手確認 → 其中 1 張加到手牌、1 張放到能量區 → 其餘放休息室
+        const looked = (f.tmp.looked as string[] | undefined) ?? me.deck.slice(0, e.look);
+        f.tmp.looked = looked;
+        if (!looked.length) return 'done';
+        const matches = looked.filter((u) => filterOk(s, u, e.filter, f.src));
+        const picked = ask(ctx, f, 'sel', {
+          kind: 'select', player: f.controller, options: matches, min: 0, max: Math.min(2, matches.length), shown: looked,
+          prompt: matches.length
+            ? `${f.label}：牌組上方 ${looked.length} 張，選最多 2 張給對手確認（1 張加到手牌、1 張放到能量區），其餘放到休息室`
+            : `${f.label}：牌組上方 ${looked.length} 張裡沒有可以拿的卡，全部放到休息室`,
+        }) as string[] | undefined;
+        if (!picked) return 'wait';
+        if (picked.length) {
+          if (!f.tmp.revealed) {
+            for (const u of picked) ctx.ev.push({ t: 'reveal', uid: u, cardId: s.cards[u]!.cardId });
+            f.tmp.revealed = true;
+          }
+          if (!showOpponent(ctx, f, picked, '選出')) return 'wait';
+        }
+        let toHand = picked.slice(0, 1);
+        if (picked.length === 2) {
+          const h = ask(ctx, f, 'hand', { kind: 'select', player: f.controller, prompt: `${f.label}：選 1 張加到手牌（另一張放到能量區）`, options: picked, min: 1, max: 1 }) as string[] | undefined;
+          if (!h) return 'wait';
+          toHand = h;
+        }
+        for (const u of toHand) core.move(ctx, u, f.controller, 'deck', 'hand');
+        for (const u of picked) if (!toHand.includes(u)) core.move(ctx, u, f.controller, 'deck', 'stock');
+        for (const u of looked) if (!picked.includes(u)) core.move(ctx, u, f.controller, 'deck', 'waiting');
+        core.refreshIfNeeded(ctx, f.controller);
+        return 'done';
+      }
+      case 'lookOpponentTopPlace': {
+        // 看對手牌組上方 1 張（只有自己看得到），決定放回上方或放到下方
+        const opp = other(f.controller);
+        const top = (f.tmp.top as string | undefined) ?? s.players[opp].deck[0];
+        if (!top) return 'done';
+        f.tmp.top = top;
+        const sel = ask(ctx, f, 'sel', {
+          kind: 'select', player: f.controller, options: [top], min: 0, max: 1, shown: [top],
+          prompt: `${f.label}：對手牌組最上面的卡。選這張＝放到牌組最下面；不選＝放回最上面`,
+        }) as string[] | undefined;
+        if (!sel) return 'wait';
+        if (sel.length) core.move(ctx, top, opp, 'deck', 'deck'); // 放到最下面
+        return 'done';
       }
     }
   }
