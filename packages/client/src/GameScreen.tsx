@@ -242,7 +242,7 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
     >
       <header className="topbar">
         <div className="brand">
-          <span className="logo">WS</span>
+          <img className="logo" src="/logo.png" alt="Weiß Schwarz" />
           <span className="vs">
             <b>{nm(seat)}</b>（{seriesName(seat)}）<i>vs</i>{nm(opp)}（{seriesName(opp)}）
           </span>

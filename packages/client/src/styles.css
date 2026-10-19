@@ -42,10 +42,7 @@ button { font: inherit; color: inherit; }
   background: rgba(15, 19, 26, 0.92); border-bottom: 1px solid var(--line);
 }
 .brand { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-.logo {
-  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; font-weight: 800; font-size: 13px; letter-spacing: 0.04em;
-  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #000)); color: #fff;
-}
+.logo { display: block; height: 34px; width: auto; flex: none; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)); }
 .vs { font-size: 13px; color: var(--muted); }
 .vs i { font-style: normal; margin: 0 6px; opacity: 0.6; }
 .phases {
@@ -233,7 +230,7 @@ button { font: inherit; color: inherit; }
 @media (max-height: 520px) {
   .app { --u: min(calc((100dvh - 66px) / 9.3), calc((100vw - 70px) / 12.3)); }
   .topbar { height: 38px; gap: 8px; padding: 0 8px; }
-  .logo { width: 24px; height: 24px; font-size: 11px; }
+  .logo { height: 26px; }
   .vs, .opp-hand > span:first-child { display: none; }
   .phases li { padding: 3px 7px; font-size: 12px; }
   .topbar .btn { padding: 4px 9px; font-size: 12px; }
@@ -508,7 +505,7 @@ button { font: inherit; color: inherit; }
 /* 登入 */
 .screen.login { justify-content: center; }
 .login-card { width: min(400px, 94vw); padding: 28px 28px 24px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0,0,0,0.5); text-align: center; }
-.login-logo { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 16px; display: grid; place-items: center; font-weight: 800; font-size: 22px; color: #fff; background: linear-gradient(135deg, #e0587f, #7a2b8f); box-shadow: 0 10px 30px rgba(224, 88, 127, 0.4); }
+.login-logo { display: block; width: 220px; max-width: 70%; height: auto; margin: 0 auto 14px; filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.6)); }
 .login-card h1 { margin: 0; font-size: 22px; }
 .login-card .sub { margin: 6px 0 18px; color: var(--muted); font-size: 13px; }
 .login-card form { display: flex; flex-direction: column; gap: 10px; text-align: left; }

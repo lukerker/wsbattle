@@ -1,0 +1,16 @@
+# Render 設定（Blueprint）：對戰伺服器
+services:
+  - type: web
+    name: wsbattle
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: node packages/server/src/main.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: FIREBASE_PROJECT_ID
+        value: wsbattle-553dc
+      - key: ALLOWED_ORIGINS
+        value: https://wsbattle-553dc.web.app,https://wsbattle-553dc.firebaseapp.com

@@ -1,41 +1,49 @@
-import { readdirSync } from 'node:fs';
-import { createReadStream } from 'node:fs';
+import { createReadStream, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
-// 開發用：把專案根目錄 cards/ 裡的卡面圖以 /card-img/<卡號> 提供給頁面。
-// 卡圖有版權，只在本機開發伺服器提供，不會被打包進 build。
+// 卡圖：專案根目錄 cards/ 裡的卡面圖，網址是 /card-img/<系列>/<卡號>.webp（例：/card-img/BTR/W107-T01.webp），牌背是 /card-img/back.png。
+// 開發時直接從 cards/ 讀；建置時複製進輸出資料夾，跟著前端網站一起部署。cards/ 不進版本庫。
 function cardImages(): Plugin {
   const root = join(import.meta.dirname, '../../cards');
-  const index = new Map<string, string>();
-  const walk = (dir: string) => {
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      const p = join(dir, e.name);
-      if (e.isDirectory()) walk(p);
-      else {
-        const m = e.name.match(/^([A-Za-z]+)_([A-Za-z0-9]+)_(T\d+)(?:\(\d+\))?\.webp$/);
-        if (m) index.set(`${m[1]}/${m[2]}-${m[3]}`, p);
+  const index = new Map<string, string>(); // 'BTR/W107-T01.webp' → 檔案路徑
+  const scan = () => {
+    index.clear();
+    const walk = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else {
+          const m = e.name.match(/^([A-Za-z]+)_([A-Za-z0-9]+)_(T\d+)(?:\(\d+\))?\.webp$/);
+          if (m) index.set(`${m[1]}/${m[2]}-${m[3]}.webp`, p);
+        }
       }
-    }
+    };
+    try { walk(root); } catch { /* 沒有 cards 資料夾：畫面改用文字卡面 */ }
+    index.set('back.png', join(root, 'card back.png'));
   };
   return {
-    name: 'dev-card-images',
-    apply: 'serve',
+    name: 'card-images',
     configureServer(server) {
-      try { walk(root); } catch { /* 沒有 cards 資料夾就算了，介面會用文字卡面 */ }
+      scan();
       server.middlewares.use('/card-img/', (req, res, next) => {
-        const id = decodeURIComponent((req.url ?? '').slice(1));
-        if (id === 'back') {
-          res.setHeader('Content-Type', 'image/png');
-          createReadStream(join(root, 'card back.png')).on('error', () => next()).pipe(res);
-          return;
-        }
-        const file = index.get(id);
+        const file = index.get(decodeURIComponent((req.url ?? '').slice(1).split('?')[0] ?? ''));
         if (!file) return next();
-        res.setHeader('Content-Type', 'image/webp');
-        createReadStream(file).pipe(res);
+        res.setHeader('Content-Type', file.endsWith('.png') ? 'image/png' : 'image/webp');
+        createReadStream(file).on('error', () => next()).pipe(res);
       });
+    },
+    generateBundle() {
+      scan();
+      let n = 0;
+      for (const [name, file] of index) {
+        try {
+          this.emitFile({ type: 'asset', fileName: `card-img/${name}`, source: readFileSync(file) });
+          n++;
+        } catch { /* 檔案不在就略過 */ }
+      }
+      this.info(`卡圖 ${n} 張`);
     },
   };
 }

@@ -30,7 +30,7 @@ export function LoginScreen({ auth, onDone }: { auth: Auth; onDone: (name: strin
   return (
     <div className="screen login">
       <div className="login-card">
-        <div className="login-logo">WS</div>
+        <img className="login-logo" src="/logo.png" alt="Weiß Schwarz" />
         <h1>黑白雙翼 對戰模擬器</h1>
         <p className="sub">和朋友線上對戰，免費、繁體中文</p>
 
@@ -176,7 +176,7 @@ export function LobbyScreen({ name, onDecks, onLogout, onRename }: { name: strin
   return (
     <div className="screen lobby">
       <header className="lobby-top">
-        <div className="brand"><span className="logo">WS</span><b>黑白雙翼 對戰模擬器</b></div>
+        <div className="brand"><img className="logo" src="/logo.png" alt="Weiß Schwarz" /><b>黑白雙翼 對戰模擬器</b></div>
         <div className="who-box">
           {editing ? (
             <form onSubmit={(e) => { e.preventDefault(); onRename(draft); setEditing(false); }}>

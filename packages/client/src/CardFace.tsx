@@ -5,7 +5,7 @@ const COLOR_ZH: Record<string, string> = { yellow: '黃', red: '紅', blue: '藍
 const TYPE_ZH: Record<string, string> = { character: '角色', event: '事件', climax: '名場面' };
 const KIND_ZH = { continuous: '永', auto: '自', activated: '起', event: '事件' } as const;
 
-export const BACK_URL = '/card-img/back';
+export const BACK_URL = '/card-img/back.png';
 
 interface ImgProps {
   card?: Card; // 沒給就是牌背
@@ -25,7 +25,7 @@ export function CardImg({ card, uid, landscape, rested, reversed, className = ''
   const face = !card ? (
     <img src={BACK_URL} alt="牌背" draggable={false} />
   ) : !broken ? (
-    <img src={`/card-img/${encodeURIComponent(card.id)}`} alt={card.name.zh} draggable={false} onError={() => setBroken(true)} />
+    <img src={`/card-img/${card.id}.webp`} alt={card.name.zh} draggable={false} onError={() => setBroken(true)} />
   ) : (
     <TextFace card={card} />
   );
