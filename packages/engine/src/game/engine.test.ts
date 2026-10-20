@@ -23,7 +23,8 @@ function start(seed = 1): GameState {
   let s = E.newGame({ seed, decks: DECKS }).state;
   s = ok(s, { type: 'mulligan', player: s.firstPlayer, discard: [] });
   s = ok(s, { type: 'mulligan', player: (1 - s.firstPlayer) as PlayerId, discard: [] });
-  return s;
+  s = ok(s, { type: 'pickFirst', player: 0, card: 0 });
+  return ok(s, { type: 'pickFirst', player: 1, card: 1 });
 }
 // 從時計階段略過，進入主要階段
 const toMain = (s: GameState) => ok(s, { type: 'clock', player: s.turnPlayer, uid: null });
@@ -73,29 +74,39 @@ describe('遊戲準備〔5〕', () => {
     const c = E.newGame({ seed: 43, decks: DECKS }).state;
     expect(a.players[0].hand).toHaveLength(5);
     expect(a.players[1].deck).toHaveLength(45);
-    expect(a.pending).toEqual({ kind: 'mulligan', player: a.firstPlayer, waiting: [a.firstPlayer, 1 - a.firstPlayer] });
+    expect(a.pending).toEqual({ kind: 'mulligan', player: 0, waiting: [0, 1] }); // 換牌雙方同時，先後攻在換牌後才決定
     expect(a.players[0].deck).toEqual(b.players[0].deck);
     expect(a.players[0].deck).not.toEqual(c.players[0].deck);
   });
 
-  it('換牌：雙方同時進行，後攻也可以先換（使用者決定，規則原本是先攻先）', () => {
+  it('換牌：雙方同時進行；換完後雙方各選 1 張蓋著的卡決定先後攻（使用者決定，規則原本是先決定先攻）', () => {
     let x = E.newGame({ seed: 7, decks: DECKS }).state;
-    const second = (1 - x.firstPlayer) as PlayerId;
-    x = ok(x, { type: 'mulligan', player: second, discard: [] });
-    expect(x.pending).toEqual({ kind: 'mulligan', player: x.firstPlayer, waiting: [x.firstPlayer] });
-    x = ok(x, { type: 'mulligan', player: x.firstPlayer, discard: [] });
+    x = ok(x, { type: 'mulligan', player: 1, discard: [] });
+    expect(x.pending).toEqual({ kind: 'mulligan', player: 0, waiting: [0] });
+    x = ok(x, { type: 'mulligan', player: 0, discard: [] });
+    expect(x.pending).toEqual({ kind: 'decideFirst', player: 0, waiting: [0, 1] });
+    x = ok(x, { type: 'pickFirst', player: 1, card: 0 });
+    expect(x.firstPick).toEqual({ picks: [null, 0] });
+    expect(E.apply(x, { type: 'pickFirst', player: 0, card: 0 }).error).toBe('這張已經被對手選了');
+    expect(E.legalActions(x)).toEqual([{ type: 'pickFirst', player: 0, card: 1 }]);
+    const r = E.apply(x, { type: 'pickFirst', player: 0, card: 1 });
+    const ev = r.events.find((e) => e.t === 'firstDecided');
+    expect(ev).toMatchObject({ picks: [1, 0] });
+    x = r.state;
     expect(x.turn).toBe(1);
     expect(x.turnPlayer).toBe(x.firstPlayer);
+    expect(ev && ev.t === 'firstDecided' && ev.first).toBe(x.firstPlayer);
+    expect(x.firstPick!.picks[x.firstPlayer]).toBe(ev && ev.t === 'firstDecided' && ev.firstCard);
   });
 
   it('換牌：丟幾張就抽幾張〔5.2.1.4〕', () => {
     let s = E.newGame({ seed: 7, decks: DECKS }).state;
-    const fp = s.firstPlayer;
+    const fp = 0;
     const discard = s.players[fp].hand.slice(0, 2);
     s = ok(s, { type: 'mulligan', player: fp, discard });
     expect(s.players[fp].hand).toHaveLength(5);
     expect(s.players[fp].waiting).toEqual(discard);
-    expect(s.pending).toEqual({ kind: 'mulligan', player: 1 - fp, waiting: [1 - fp] });
+    expect(s.pending).toEqual({ kind: 'mulligan', player: 1, waiting: [1] });
   });
 
   it('換牌後先攻玩家起立、抽 1 張，停在時計階段〔6.2、6.3〕', () => {

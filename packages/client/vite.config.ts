@@ -22,6 +22,12 @@ function cardImages(): Plugin {
     };
     try { walk(root); } catch { /* 沒有 cards 資料夾：畫面改用文字卡面 */ }
     index.set('back.png', join(root, 'card back.png'));
+    // scripts/prepare-images.ps1 產生的網頁用圖：系統先攻／後攻卡、各系列的 VS 圖
+    index.set('system/first.jpg', join(root, '_web/first.jpg'));
+    index.set('system/last.jpg', join(root, '_web/last.jpg'));
+    try {
+      for (const f of readdirSync(join(root, '_web/vs'))) index.set(`vs/${f}`, join(root, '_web/vs', f));
+    } catch { /* 還沒產生 VS 圖 */ }
   };
   return {
     name: 'card-images',
@@ -30,7 +36,7 @@ function cardImages(): Plugin {
       server.middlewares.use('/card-img/', (req, res, next) => {
         const file = index.get(decodeURIComponent((req.url ?? '').slice(1).split('?')[0] ?? ''));
         if (!file) return next();
-        res.setHeader('Content-Type', file.endsWith('.png') ? 'image/png' : 'image/webp');
+        res.setHeader('Content-Type', file.endsWith('.png') ? 'image/png' : file.endsWith('.jpg') ? 'image/jpeg' : 'image/webp');
         createReadStream(file).on('error', () => next()).pipe(res);
       });
     },

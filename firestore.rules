@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 先攻／後攻卡面：登入的人都能讀（對手要看到開房者的卡），只有本人能寫；每張圖限制大小
+    match /turnCards/{uid} {
+      allow read: if request.auth != null;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['first', 'last', 'updatedAt'])
+        && (!('first' in request.resource.data) || (request.resource.data.first is string && request.resource.data.first.size() < 400000))
+        && (!('last' in request.resource.data) || (request.resource.data.last is string && request.resource.data.last.size() < 400000));
+    }
+    // 其他一律不開放
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

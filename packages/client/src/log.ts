@@ -1,6 +1,6 @@
 // 對戰紀錄：把伺服器傳來的事件翻成一行一行的文字（只用公開資訊）。
 import type { GameEvent, GameView, PlayerId } from '@ws/engine';
-import { cardById } from './meta.ts';
+import { SLOT_NAME, cardById } from './meta.ts';
 
 export interface LogEntry {
   id: number;
@@ -33,13 +33,14 @@ export function buildLog(events: GameEvent[], view: GameView): LogEntry[] {
         const name = nameOf(e.cardId);
         const { from, to } = e;
         if (!name) break; // 沒公開的移動（抽牌等）不記
-        if (from.zone === 'hand' && to.zone === 'stage') add(from.p, `登場「${name}」`);
+        if (from.zone === 'hand' && to.zone === 'stage') add(from.p, `登場「${name}」（${to.slot !== undefined ? SLOT_NAME[to.slot] : '舞台'}）`);
+        else if (from.zone === 'stage' && to.zone === 'stage' && from.p === to.p && to.slot !== undefined) add(to.p, `把「${name}」移到${SLOT_NAME[to.slot]}`);
         else if (from.zone === 'hand' && to.zone === 'climax') add(from.p, `打出名場面「${name}」`);
         else if (from.zone === 'hand' && to.zone === 'resolution') add(from.p, `使用事件「${name}」`);
         else if (from.zone === 'hand' && to.zone === 'clock') add(from.p, `把「${name}」放到傷害區（時計）`);
         else if (from.zone === 'waiting' && to.zone === 'hand') add(to.p, `從休息室拿回「${name}」`);
         else if (from.zone === 'waiting' && to.zone === 'stock') add(to.p, `把休息室的「${name}」放到能量區`);
-        else if (from.zone === 'stage' && to.zone === 'stage' && from.p !== to.p) add(to.p, `「${name}」被移動`);
+        else if (from.zone === 'waiting' && to.zone === 'stage') add(to.p, `從休息室放「${name}」到${to.slot !== undefined ? SLOT_NAME[to.slot] : '舞台'}`);
         else if (from.zone === 'stage' && to.zone === 'clock' && to.p !== null) add(to.p, `「${name}」被放進傷害區`);
         break;
       }
@@ -63,9 +64,12 @@ export function buildLog(events: GameEvent[], view: GameView): LogEntry[] {
         break;
       case 'ability': {
         const text = e.text.replace(/^【[^】]*】/, '');
-        add(ownerOf(e.uid), `發動「${nameOf(e.cardId)}」：${text.length > 38 ? `${text.slice(0, 38)}…` : text}`);
+        add(ownerOf(e.uid), `「${nameOf(e.cardId)}」的效果：${text.length > 38 ? `${text.slice(0, 38)}…` : text}`);
         break;
       }
+      case 'firstDecided':
+        add(e.first, '翻到先攻，先攻開始');
+        break;
       case 'log':
         add(e.p, e.text);
         break;

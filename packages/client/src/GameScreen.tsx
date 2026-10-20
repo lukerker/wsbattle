@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Action, AttackMode, Card, ClientState, GameEvent, GameView, Pending, PlayerId, RoomInfo, Slot } from '@ws/engine';
 import { applyStep, groupEvents, originsOf, playAttack, useFlip } from './anim.ts';
 import { Board, type ZoneMode } from './Board.tsx';
 import { Abilities, BACK_URL, CardFace, CardImg, CardInfo, cardMeta } from './CardFace.tsx';
 import { PHASES, SLOT_NAME, cardById, seriesInfo } from './meta.ts';
 import { buildLog, type LogEntry } from './log.ts';
+import { DEFAULT_TURN_CARDS, loadTurnCards, type TurnCards } from './turnCards.ts';
 import { net, useNet } from './net.ts';
 
 // 連線對戰畫面：永遠用自己的座位視角；觀戰者看座位 0 的視角，只看得到公開資訊。
@@ -13,7 +14,8 @@ import { net, useNet } from './net.ts';
 type Source = { from: 'hand'; uid: string } | { from: 'stage'; slot: number; uid: string };
 type ZoneView = { title: string; ids: string[]; mode: ZoneMode } | null;
 type Drag = { src: Source; x: number; y: number; over: string | null } | null;
-type Anim = { display: GameView; banner: PlayerId | null };
+type FirstDecided = { first: PlayerId; firstCard: 0 | 1; picks: [0 | 1, 0 | 1] };
+type Anim = { display: GameView; banner: PlayerId | null; firstDecided: FirstDecided | null };
 
 const DRAG_THRESHOLD = 8;
 const dropTargetAt = (x: number, y: number) =>
@@ -66,7 +68,7 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
             const entries = buildLog(step.events, state.view);
             if (entries.length) setLog((l) => [...l, ...entries].slice(-80));
             for (const [uid, o] of originsOf(step.events)) origins.current.set(uid, o);
-            setAnim({ display, banner: step.turnStart ?? null });
+            setAnim({ display, banner: step.turnStart ?? null, firstDecided: step.firstDecided ?? null });
             const atk = step.attack;
             if (atk) window.requestAnimationFrame(() => rootRef.current && playAttack(rootRef.current, atk.uid, display.turnPlayer, atk.slot, atk.mode));
             if (step.ms) await sleep(step.ms);
@@ -81,6 +83,27 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
       void drain();
     });
   }, []);
+
+  // 先後攻翻牌用開房玩家上傳的卡面（沒有就用系統預設）
+  const [turnCards, setTurnCards] = useState<TurnCards>(DEFAULT_TURN_CARDS);
+  const hostUid = room.seats[0]?.uid;
+  useEffect(() => {
+    void loadTurnCards(hostUid).then(setTurnCards);
+  }, [hostUid]);
+
+  // 剛開局（還在換牌）第一次進這個畫面：播 VS 動畫（每間房間只播一次，重新整理不再播）
+  const [vs, setVs] = useState(false);
+  const vsChecked = useRef(false);
+  useLayoutEffect(() => { // 畫面畫出來之前就決定，避免先閃一下場地
+    if (!cs || vsChecked.current) return;
+    vsChecked.current = true;
+    const key = `ws-vs-${room.code}`;
+    if (cs.view.turn !== 0 || sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+    setVs(true);
+    const t = window.setTimeout(() => setVs(false), 3900);
+    return () => window.clearTimeout(t);
+  }, [cs, room.code]);
 
   // 伺服器回報的錯誤（例如動作不合法）
   useEffect(() => {
@@ -370,6 +393,27 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
         </div>
       )}
 
+      {(anim?.firstDecided || (!anim && cs.waiting?.kind === 'decideFirst')) && (
+        <FirstPick
+          picks={anim?.firstDecided?.picks ?? view.firstPick?.picks ?? [null, null]}
+          result={anim?.firstDecided ?? null}
+          seat={seat}
+          spectating={spectating}
+          canPick={!spectating && mine?.kind === 'decideFirst'}
+          name={nm}
+          accent={accentOf}
+          images={turnCards}
+          onPick={(card) => act({ type: 'pickFirst', player: seat, card })}
+        />
+      )}
+
+      {vs && (
+        <VsIntro
+          left={{ name: nm(seat), series: room.seats[seat]?.series ?? '', label: seriesName(seat), accent: accentOf(seat) }}
+          right={{ name: nm(opp), series: room.seats[opp]?.series ?? '', label: seriesName(opp), accent: accentOf(opp) }}
+        />
+      )}
+
       {zoneView && <ZoneDialog view={zoneView} cardOf={cardOfUid} onClose={() => setZoneView(null)} />}
 
       {!anim && mine && isPrompt(mine) && (
@@ -462,11 +506,12 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
   }
 }
 
-const isPrompt = (p: Pending) => !['main', 'climax', 'attackDeclare', 'clock'].includes(p.kind);
+const isPrompt = (p: Pending) => !['main', 'climax', 'attackDeclare', 'clock', 'decideFirst'].includes(p.kind);
 
 function pendingHint(p: Pending): string {
   switch (p.kind) {
     case 'mulligan': return '換牌：選要丟掉的手牌（可以不選），丟幾張就抽幾張。';
+    case 'decideFirst': return '決定先後攻：點選一張蓋著的卡。';
     case 'clock': return '可以把 1 張手牌拖到傷害區（之後抽 2 張），或按「略過時計」。';
     case 'main': return '把手牌拖到格子出牌、拖動角色換位置、點選角色使用起動能力；做完按「結束主要階段」。';
     case 'climax': return '可以把名場面拖到名場面區，或按「不打名場面」。';
@@ -685,3 +730,82 @@ function ZoneDialog({ view, cardOf, onClose }: { view: NonNullable<ZoneView>; ca
     </div>
   );
 }
+
+// 決定先後攻：兩張蓋著的大卡，雙方各點一張（點過的亮起並標名字），都選好後一起翻開
+function FirstPick({ picks, result, seat, spectating, canPick, name, accent, images, onPick }: {
+  picks: (0 | 1 | null)[];
+  result: FirstDecided | null;
+  seat: PlayerId;
+  spectating: boolean;
+  canPick: boolean;
+  name: (p: PlayerId) => string;
+  accent: (p: PlayerId) => string;
+  images: TurnCards;
+  onPick: (card: 0 | 1) => void;
+}) {
+  const opp = (1 - seat) as PlayerId;
+  const owner = (card: 0 | 1): PlayerId | null => (picks[0] === card ? 0 : picks[1] === card ? 1 : null);
+  const status = result
+    ? `${spectating ? name(result.first) : result.first === seat ? '你' : name(result.first)} 先攻！`
+    : spectating ? '雙方選卡中…'
+    : picks[seat] === null ? '點一張卡' : picks[opp] === null ? `等待 ${name(opp)} 選卡…` : '翻牌中…';
+  return (
+    <div className={`first-pick${result ? ' revealed' : ''}`}>
+      <div className="fp-banner"><span>決定先後攻</span></div>
+      <div className="fp-cards">
+        {([0, 1] as const).map((card) => {
+          const p = owner(card);
+          const free = canPick && picks[seat] === null && p === null;
+          const face = result ? (card === result.firstCard ? images.first : images.last) : images.first;
+          return (
+            <div key={card} className="fp-slot">
+              <button
+                className={`fp-card${p !== null ? ' picked' : ''}${free ? ' free' : ''}`}
+                style={p !== null ? { ['--pc' as string]: accent(p) } : undefined}
+                disabled={!free}
+                onClick={() => onPick(card)}
+                aria-label={card === 0 ? '左邊的卡' : '右邊的卡'}
+              >
+                <span className="fp-inner">
+                  <img className="fp-back" src={BACK_URL} alt="" draggable={false} />
+                  <img className="fp-face" src={face} alt="" draggable={false} />
+                </span>
+              </button>
+              <span className="fp-who" style={p !== null ? { ['--pc' as string]: accent(p) } : undefined}>
+                {p === null ? ' ' : p === seat && !spectating ? '你' : name(p)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <p className="fp-status">{status}</p>
+    </div>
+  );
+}
+
+// 進入對戰的 VS 動畫：左右兩邊是雙方牌組的主視覺，撞在一起噴出「VS」
+function VsIntro({ left, right }: { left: VsSide; right: VsSide }) {
+  const side = (s: VsSide, cls: 'l' | 'r') => (
+    <div className={`vs-side ${cls}`} style={{ ['--pc' as string]: s.accent }}>
+      <div className="vs-art">
+        <img src={`/card-img/vs/${s.series}.jpg`} alt="" draggable={false} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+      </div>
+      <div className="vs-name">
+        <b>{s.name}</b>
+        <span>{s.label}</span>
+      </div>
+    </div>
+  );
+  return (
+    <div className="vs-intro" aria-hidden="true">
+      <div className="vs-stage">
+        {side(left, 'l')}
+        {side(right, 'r')}
+        <div className="vs-flash" />
+        <div className="vs-ring" />
+        <div className="vs-text">VS</div>
+      </div>
+    </div>
+  );
+}
+type VsSide = { name: string; series: string; label: string; accent: string };

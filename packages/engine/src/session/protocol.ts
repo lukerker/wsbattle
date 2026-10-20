@@ -10,6 +10,7 @@ export interface RoomConfig {
 }
 
 export interface SeatInfo {
+  uid: string; // 使用者 ID（Firebase uid；測試登入是 dev:…），畫面用來讀這位玩家上傳的先攻／後攻卡
   name: string;
   series: string; // 牌組的系列代碼，畫面用來決定主題色
   deckName: string;

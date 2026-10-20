@@ -23,6 +23,7 @@
 - 帳號：Email 註冊登入與 Google 登入（Firebase Auth），玩家自己取顯示名稱；牌組存雲端
 - 牌組：玩家自組，另有各系列固定預組（50 張）
 - 不做：公開大廳、配對、排名、異步對戰、電腦對手、教學模式、內建語音
+- 開局流程：進房 → VS 動畫（雙方牌組主視覺從左右撞在一起，每間房只播一次）→ 雙方同時換牌 → 決定先後攻（兩張蓋著的大卡，雙方各點一張，都選好後翻開）。先後攻卡面用開房玩家在「我的牌組」上傳的圖（存 Firestore `turnCards/<uid>`），沒有就用系統預設（`cards/system first.png`、`system last.png`）
 - 對戰紀錄：場地右側兩個名牌之間顯示雙方動作與發動的效果（窄螢幕用上方「紀錄」按鈕開）；只用公開資訊
 - 公開、翻牌類效果（公開牌組上方、集中、翻 N 張）：卡翻到牌組旁邊，跳出視窗給發動的玩家看結果，按鈕寫明結果（例「加到手牌」「抽 X 張」「放到休息室」）；對手不用按確認，從動畫和紀錄得知。卡面寫「相手に見せ」的才要對手確認
 - 視覺：深色專業介面，場地照官方場地圖配置（`cards/ws battle ground.jpg`）並用灰藍桌墊質感；牌堆用真牌背（`cards/card back.png`）並顯示厚度；每個系列一個主題色點綴
@@ -113,5 +114,6 @@ packages/client
 - `npm test`：跑引擎、卡片效果、房間與連線的測試
 - `npm run typecheck`：型別檢查（engine）
 - 部署前端：`npm run build --workspace @ws/client` 後 `npx firebase-tools deploy --only hosting`（要在有 `cards/` 的這台電腦做）；伺服器：`git push` 到 main，Render 自動部署
+- `powershell -ExecutionPolicy Bypass -File scripts/prepare-images.ps1`：把系統先攻／後攻卡和各系列 `*_VS.jpg` 縮成網頁用的圖（`cards/_web/`），新增 VS 圖後要跑一次再部署前端
 - `node scripts/build-review.ts BTR-W107`：產生 `docs/review/` 的三欄核對表
 - PowerShell 5.1 的 `Set-Content/Add-Content -Encoding utf8` 會加 BOM，寫 JSON 檔要用 Write 工具或 .NET UTF8Encoding(false)

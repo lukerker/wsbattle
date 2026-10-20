@@ -1,6 +1,6 @@
 // 回合流程的整體檢查：一位玩家把整個回合跑完才換人、每回合都抽牌、先攻第 1 回合只能攻擊 1 次。
 import { describe, expect, it } from 'vitest';
-import { E, DECKS, GCR_DECK, choose, ok, oppTurn, order, put, scene, top, yes } from './test-utils.ts';
+import { E, DECKS, GCR_DECK, choose, decideFirst, ok, oppTurn, order, put, scene, top, yes } from './test-utils.ts';
 import type { GameState, PlayerId } from './types.ts';
 
 const ORDER = ['stand', 'draw', 'clock', 'main', 'climax', 'attack', 'encore', 'end'];
@@ -55,6 +55,7 @@ describe('回合流程', () => {
     let s = E.newGame({ seed: 9, decks: DECKS }).state;
     s = ok(s, { type: 'mulligan', player: s.firstPlayer, discard: [] });
     s = ok(s, { type: 'mulligan', player: (1 - s.firstPlayer) as PlayerId, discard: [] });
+    s = decideFirst(s);
     expect(s.players[s.firstPlayer].hand).toHaveLength(6);
     // 跑到對手的回合
     const fp = s.firstPlayer;

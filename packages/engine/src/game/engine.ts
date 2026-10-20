@@ -440,8 +440,35 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         for (const u of a.discard) move(ctx, u, who, 'hand', 'waiting');
         for (let i = 0; i < a.discard.length; i++) drawOne(ctx, who);
         const waiting = pend.waiting.filter((x) => x !== who);
-        s.pending = waiting.length ? { kind: 'mulligan', player: waiting[0]!, waiting } : null;
-        if (!s.pending) then(s, { k: 'turnStart' });
+        if (waiting.length) {
+          s.pending = { kind: 'mulligan', player: waiting[0]!, waiting };
+        } else {
+          // 雙方換完牌：翻牌決定先後攻
+          s.firstPick = { picks: [null, null] };
+          s.pending = { kind: 'decideFirst', player: 0, waiting: [0, 1] };
+        }
+        return null;
+      }
+      case 'decideFirst': {
+        // 雙方各選 1 張蓋著的卡（不能選對手已經選的）；都選好才抽哪張是先攻，翻開決定
+        if (a.type !== 'pickFirst') return wrong;
+        const fp = s.firstPick!;
+        const who = a.player;
+        if (fp.picks[who] !== null) return '你已經選好了';
+        if (fp.picks[other(who)] === a.card) return '這張已經被對手選了';
+        fp.picks[who] = a.card;
+        const waiting = pend.waiting.filter((x) => x !== who);
+        if (waiting.length) {
+          s.pending = { kind: 'decideFirst', player: waiting[0]!, waiting };
+          return null;
+        }
+        s.pending = null;
+        const firstCard: 0 | 1 = nextRandom(s) < 0.5 ? 0 : 1;
+        const first: PlayerId = fp.picks[0] === firstCard ? 0 : 1;
+        s.firstPlayer = first;
+        s.turnPlayer = first;
+        ctx.ev.push({ t: 'firstDecided', first, firstCard, picks: fp.picks as [0 | 1, 0 | 1] });
+        then(s, { k: 'turnStart' });
         return null;
       }
       case 'clock': {
@@ -554,6 +581,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       case 'counter': {
         if (a.type === 'pass') {
           s.pending = null;
+          ctx.ev.push({ t: 'log', p, text: '不使用助太刀' });
           return null;
         }
         if (a.type !== 'choose' || a.uids.length !== 1 || !pend.options.includes(a.uids[0]!)) return '請選 1 張可以使用助太刀的卡，或不使用';
@@ -601,6 +629,8 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       case 'yesno': {
         if (a.type !== 'yesno') return wrong;
         s.pending = null;
+        const what = { treasureStock: '判定（金條）：牌組上方 1 張放到能量區', pool: '判定（錢袋）：牌組上方 1 張放到能量區', draw: '判定（書本）：抽 1 張' }[pend.reason];
+        ctx.ev.push({ t: 'log', p, text: `${what}${a.yes ? '' : ' → 不要'}` });
         if (!a.yes) return null;
         if (pend.reason === 'draw') drawOne(ctx, p);
         else if (pl.deck.length) {
@@ -616,6 +646,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
           // 都是「可以發動」的能力：全部選擇不發動〔8.7.3.2.1〕
           s.standby = s.standby.filter((w) => w.controller !== p);
           s.pending = null;
+          ctx.ev.push({ t: 'log', p, text: `選擇都不發動（${pend.options.map((o) => `「${cardOf(s, o.uid).name.zh}」`).join('')}）` });
           return null;
         }
         if (a.uids.length !== 1) return '請選 1 個要先解決的能力';
@@ -695,6 +726,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     const s: GameState = {
       rng: opts.seed >>> 0 || 1, cards: {}, players: [emptyPlayer(), emptyPlayer()], firstPlayer: 0, turnPlayer: 0, turn: 0,
       phase: 'setup', attack: null, attacksThisTurn: 0, mods: [], grants: [], placedThisTurn: [], standby: [], nextId: 1, queue: [], pending: null, winner: null,
+      firstPick: null,
     };
     const ctx: Ctx = { s, ev: [] };
     ([0, 1] as PlayerId[]).forEach((p) => {
@@ -706,11 +738,9 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       });
       shuffle(ctx, p);
     });
-    // 隨機決定先攻〔5.2.1.3〕
-    s.firstPlayer = nextRandom(s) < 0.5 ? 0 : 1;
-    s.turnPlayer = s.firstPlayer;
+    // 先後攻〔5.2.1.3〕：本專案依使用者決定，雙方換完牌後才翻牌決定（見 decideFirst）
     for (const p of [0, 1] as PlayerId[]) for (let i = 0; i < 5; i++) drawOne(ctx, p);
-    s.pending = { kind: 'mulligan', player: s.firstPlayer, waiting: [s.firstPlayer, other(s.firstPlayer)] };
+    s.pending = { kind: 'mulligan', player: 0, waiting: [0, 1] };
     return { state: s, events: ctx.ev };
   }
 
@@ -725,7 +755,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     }
     const pend = s.pending;
     if (!pend) return fail('現在沒有在等待任何動作');
-    const mayAct = pend.kind === 'mulligan' ? pend.waiting.includes(action.player) : action.player === pend.player;
+    const mayAct = 'waiting' in pend ? pend.waiting.includes(action.player) : action.player === pend.player;
     if (!mayAct) return fail('還沒輪到你');
     const err = resolve(ctx, pend, action);
     if (err) return fail(err);
@@ -746,6 +776,9 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       case 'mulligan':
         out.push({ type: 'mulligan', player, discard: [] });
         for (const u of pl.hand) out.push({ type: 'mulligan', player, discard: [u] });
+        break;
+      case 'decideFirst':
+        for (const card of [0, 1] as const) if (s.firstPick?.picks[other(player)] !== card) out.push({ type: 'pickFirst', player, card });
         break;
       case 'clock':
         out.push({ type: 'clock', player, uid: null });

@@ -187,6 +187,12 @@ describe('操作與資訊過濾', () => {
     expect(b.state!.mine).toBeNull();
     expect(b.state!.waiting).toMatchObject({ kind: 'mulligan', players: [0] });
     await send(m, a, { t: 'action', action: { type: 'mulligan', player: 0, discard: [] } });
+    expect(b.state!.mine).toMatchObject({ kind: 'decideFirst' }); // 換完牌：雙方同時選先後攻的卡
+    await send(m, a, { t: 'action', action: { type: 'pickFirst', player: 0, card: 1 } });
+    expect(b.state!.view.firstPick).toEqual({ picks: [1, null] }); // 對手選了哪張，大家都看得到
+    await send(m, b, { t: 'action', action: { type: 'pickFirst', player: 1, card: 1 } });
+    expect(b.error).toBe('這張已經被對手選了');
+    await send(m, b, { t: 'action', action: { type: 'pickFirst', player: 1, card: 0 } });
     expect(a.state!.view.turn).toBe(1);
   });
 
@@ -217,10 +223,11 @@ async function playRandom(seed: number, spectator: boolean) {
   while (room.status === 'playing' && steps++ < 4000) {
     const g = room.game!;
     const pend = g.pending!;
-    const seats: PlayerId[] = pend.kind === 'mulligan' ? pend.waiting : [pend.player];
+    const seats: PlayerId[] = 'waiting' in pend ? pend.waiting : [pend.player];
     const seat = seats[rand(seats.length)]!;
     let action: Action;
     if (pend.kind === 'mulligan') action = { type: 'mulligan', player: seat, discard: [] };
+    else if (pend.kind === 'decideFirst') action = { type: 'pickFirst', player: seat, card: g.firstPick!.picks[(1 - seat) as PlayerId] === 0 ? 1 : 0 };
     else {
       const legal = conns[seat].state!.legal; // 伺服器給這位玩家的合法動作
       expect(legal.length, `第 ${steps} 步沒有合法動作`).toBeGreaterThan(0);
@@ -243,7 +250,7 @@ async function playRandom(seed: number, spectator: boolean) {
         if (now?.kind === 'acknowledge') now.cards.forEach((u) => allowed.add(u));
         for (const u of mustHide) if (!allowed.has(u)) expect(st.view.cards[u]!.cardId, `${viewer} 看到了 ${u}`).toBeNull();
       }
-      if (viewer !== 'spectator') expect(st.mine === null || (st.mine.kind === 'mulligan' ? st.mine.waiting.includes(viewer) : st.mine.player === viewer)).toBe(true);
+      if (viewer !== 'spectator') expect(st.mine === null || ('waiting' in st.mine ? st.mine.waiting.includes(viewer) : st.mine.player === viewer)).toBe(true);
     }
   }
   return { room, a, b, s };

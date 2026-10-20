@@ -747,6 +747,7 @@ export function createEffects(core: Core) {
       if (new Set(uids).size !== uids.length || uids.some((u) => !pend.options.includes(u))) return '只能選可選的卡';
     }
     if (pend.kind === 'chooseSlot' && !pend.slots.includes(value as Slot)) return '不能選這個格子';
+    if (pend.kind === 'confirm') ctx.ev.push({ t: 'log', p: pend.player, text: confirmLog(pend.prompt, value as boolean) });
     top.f.answer = value;
     s.pending = null;
     return null;
@@ -756,3 +757,15 @@ export function createEffects(core: Core) {
 }
 
 export type Effects = ReturnType<typeof createEffects>;
+
+// 「是／否」的回答寫進對戰紀錄
+function confirmLog(prompt: string, yes: boolean): string {
+  const line = prompt.split('\n')[0]!;
+  const ability = line.match(/^要發動「(.+)」的效果嗎？$/);
+  if (ability) return `${yes ? '選擇發動' : '選擇不發動'}「${ability[1]}」的效果`;
+  const pay = line.match(/^(.+)：要支付費用並繼續嗎？$/);
+  if (pay) return `「${pay[1]}」：${yes ? '支付費用' : '不支付費用'}`;
+  const draw = line.match(/^(.+)：要抽 1 張嗎？/);
+  if (draw) return `「${draw[1]}」：${yes ? '抽 1 張' : '不抽'}`;
+  return `${line.replace(/？$/, '')}：${yes ? '是' : '否'}`;
+}

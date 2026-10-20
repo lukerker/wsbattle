@@ -150,7 +150,7 @@ export class GameRoom {
   info(userId: string): RoomInfo {
     const seat = (p: PlayerId): SeatInfo | null => {
       const s = this.seats[p];
-      return s ? { name: s.user.name, series: s.series, deckName: s.deckName, online: this.online.has(s.user.id) } : null;
+      return s ? { uid: s.user.id, name: s.user.name, series: s.series, deckName: s.deckName, online: this.online.has(s.user.id) } : null;
     };
     return {
       code: this.code,
@@ -167,7 +167,7 @@ export class GameRoom {
     if (!g) return null;
     const e = this.engine;
     const pend: Pending | null = g.pending;
-    const waitingPlayers: PlayerId[] = !pend ? [] : pend.kind === 'mulligan' ? pend.waiting : [pend.player];
+    const waitingPlayers: PlayerId[] = !pend ? [] : 'waiting' in pend ? pend.waiting : [pend.player];
     const isMine = viewer !== 'spectator' && waitingPlayers.includes(viewer);
 
     // 這個觀看者因為待決選擇而看得到的牌
@@ -204,7 +204,7 @@ export class GameRoom {
       viewer,
       mine: isMine ? pend : null,
       waiting: pend ? { kind: pend.kind, players: waitingPlayers } : null,
-      legal: isMine && pend && pend.kind !== 'mulligan' ? e.legalActions(g) : [],
+      legal: isMine && pend && !('waiting' in pend) ? e.legalActions(g) : [], // 換牌、先後攻：雙方同時，畫面自己組按鈕
       power,
       soul,
       problems,

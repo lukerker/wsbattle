@@ -55,6 +55,7 @@ export function scene(seed = 11, decks: [string[], string[]] = DECKS): GameState
   let s = E.newGame({ seed, decks }).state;
   s = ok(s, { type: 'mulligan', player: s.firstPlayer, discard: [] });
   s = ok(s, { type: 'mulligan', player: (1 - s.firstPlayer) as PlayerId, discard: [] });
+  s = decideFirst(s);
   s = ok(s, { type: 'clock', player: s.turnPlayer, uid: null });
   for (const p of [0, 1] as PlayerId[]) {
     const pl = s.players[p];
@@ -68,6 +69,12 @@ export function scene(seed = 11, decks: [string[], string[]] = DECKS): GameState
   s.turn = 3;
   s.pending = { kind: 'main', player: 0 };
   return s;
+}
+
+// 換完牌後決定先後攻：玩家 0 選左邊、玩家 1 選右邊（誰先攻由種子決定）
+export function decideFirst(s: GameState): GameState {
+  s = ok(s, { type: 'pickFirst', player: 0, card: 0 });
+  return ok(s, { type: 'pickFirst', player: 1, card: 1 });
 }
 
 // 讓玩家 1 成為回合玩家（主要階段）

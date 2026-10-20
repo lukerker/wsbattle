@@ -4,6 +4,7 @@ import { authErrorText, type Auth } from './auth.ts';
 import { CardFace, CardInfo } from './CardFace.tsx';
 import { PRESET_DECKS, cardById, seriesInfo, type DeckInfo } from './meta.ts';
 import { net, useNet } from './net.ts';
+import { DEFAULT_TURN_CARDS, fileToCardImage, loadTurnCards, saveTurnCard, type TurnCards } from './turnCards.ts';
 
 // ───── 登入 ─────
 export function LoginScreen({ auth, onDone }: { auth: Auth; onDone: (name: string) => void }) {
@@ -126,6 +127,7 @@ export function DecksScreen({ onBack }: { onBack: () => void }) {
           ))}
         </div>
       </section>
+      <TurnCardsSection />
       <section className="scr-sec">
         <h3>自己組的牌組</h3>
         <div className="empty-deck">
@@ -152,6 +154,61 @@ export function DecksScreen({ onBack }: { onBack: () => void }) {
         </div>
       )}
     </div>
+  );
+}
+
+// 先攻／後攻卡面：開房時會用你上傳的這兩張（沒上傳就用系統預設）
+function TurnCardsSection() {
+  const { user } = useNet();
+  const uid = user?.userId;
+  const [cards, setCards] = useState<TurnCards | null>(null);
+  const [busy, setBusy] = useState<keyof TurnCards | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (uid) void loadTurnCards(uid).then(setCards);
+  }, [uid]);
+  if (!uid) return null;
+
+  const change = async (which: keyof TurnCards, file: File | null) => {
+    setErr(null);
+    setBusy(which);
+    try {
+      const image = file ? await fileToCardImage(file) : null;
+      await saveTurnCard(uid, which, image);
+      setCards(await loadTurnCards(uid));
+    } catch (e) {
+      setErr(e instanceof Error ? `上傳失敗：${e.message}` : '上傳失敗');
+    } finally {
+      setBusy(null);
+    }
+  };
+  const slot = (which: keyof TurnCards, label: string) => {
+    const src = cards?.[which] ?? DEFAULT_TURN_CARDS[which];
+    const custom = src !== DEFAULT_TURN_CARDS[which];
+    return (
+      <div className="turn-slot">
+        <div className="turn-img">{busy === which ? <span className="muted">處理中…</span> : <img src={src} alt={label} />}</div>
+        <b>{label}{custom ? '' : '（系統預設）'}</b>
+        <div className="actions">
+          <label className="btn">
+            上傳圖片
+            <input type="file" accept="image/*" hidden disabled={busy !== null} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void change(which, f); }} />
+          </label>
+          {custom && <button className="btn ghost" disabled={busy !== null} onClick={() => void change(which, null)}>恢復預設</button>}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <section className="scr-sec">
+      <h3>先攻／後攻卡面</h3>
+      <p className="muted">你開的房間，決定先後攻時會翻這兩張。圖片會自動裁成卡片比例（5:7）。</p>
+      <div className="turn-cards">
+        {slot('first', '先攻卡')}
+        {slot('last', '後攻卡')}
+      </div>
+      {err && <p className="err">{err}</p>}
+    </section>
   );
 }
 

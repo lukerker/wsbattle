@@ -118,6 +118,7 @@ export interface StandbyAbility {
 // 等待玩家回應的選擇（待決選擇）
 export type Pending =
   | { kind: 'mulligan'; player: PlayerId; waiting: PlayerId[] } // 雙方同時換牌：waiting 裡的玩家都可以送出
+  | { kind: 'decideFirst'; player: PlayerId; waiting: PlayerId[] } // 決定先後攻：雙方各選 1 張蓋著的卡（同時進行）
   | { kind: 'clock'; player: PlayerId }
   | { kind: 'main'; player: PlayerId }
   | { kind: 'climax'; player: PlayerId }
@@ -136,6 +137,7 @@ export type Pending =
 
 export type Action =
   | { type: 'mulligan'; player: PlayerId; discard: string[] }
+  | { type: 'pickFirst'; player: PlayerId; card: 0 | 1 } // 決定先後攻：選左邊（0）或右邊（1）的卡
   | { type: 'clock'; player: PlayerId; uid: string | null }
   | { type: 'playCharacter'; player: PlayerId; uid: string; slot: Slot }
   | { type: 'playEvent'; player: PlayerId; uid: string }
@@ -171,7 +173,8 @@ export type GameEvent =
   | { t: 'ability'; uid: string; cardId: string; text: string } // 能力開始解決
   | { t: 'reveal'; uid: string; cardId: string } // 公開
   | { t: 'notice'; text: string } // 例：尚未實作的卡片效果
-  | { t: 'log'; p: PlayerId; text: string }; // 給對戰紀錄的說明（只含公開資訊）
+  | { t: 'log'; p: PlayerId; text: string } // 給對戰紀錄的說明（只含公開資訊）
+  | { t: 'firstDecided'; first: PlayerId; firstCard: 0 | 1; picks: [0 | 1, 0 | 1] }; // 先後攻翻牌結果：picks[玩家]＝他選的卡
 
 export interface GameState {
   rng: number; // 亂數狀態（固定種子，可重播）
@@ -191,6 +194,8 @@ export interface GameState {
   queue: Step[];
   pending: Pending | null;
   winner: PlayerId | 'draw' | null;
+  // 決定先後攻：雙方選的卡（null＝還沒選）。哪張是先攻在雙方都選好時才抽，所以這裡沒有祕密
+  firstPick: { picks: [0 | 1 | null, 0 | 1 | null] } | null;
 }
 
 export interface ApplyResult {

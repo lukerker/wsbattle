@@ -624,3 +624,107 @@ button { font: inherit; color: inherit; }
   .code-big b { width: 34px; height: 44px; font-size: 24px; }
   .login-card { padding: 14px 18px; }
 }
+/* ───── 決定先後攻 ───── */
+.first-pick {
+  position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3vh;
+  background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(20, 26, 38, 0.82), rgba(5, 7, 10, 0.94));
+  animation: fp-in 0.35s ease-out both;
+}
+@keyframes fp-in { from { opacity: 0; } to { opacity: 1; } }
+.fp-banner { width: 100%; overflow: hidden; display: flex; justify-content: center; pointer-events: none; }
+.fp-banner span {
+  display: block; padding: 10px 70px; font-size: clamp(20px, 3.4vw, 34px); font-weight: 900; letter-spacing: 0.3em; color: #fff;
+  background: linear-gradient(90deg, transparent, rgba(224, 88, 127, 0.85) 18%, rgba(122, 43, 143, 0.85) 82%, transparent);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+  animation: fp-banner 0.7s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+@keyframes fp-banner { from { transform: translateX(-110vw); } to { transform: translateX(0); } }
+.fp-cards { display: flex; gap: clamp(24px, 6vw, 90px); perspective: 1400px; }
+.fp-slot { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.fp-card {
+  --w: clamp(130px, min(24vw, 38vh), 260px);
+  width: var(--w); aspect-ratio: 5 / 7; padding: 0; border: none; border-radius: 14px; background: transparent; cursor: default;
+  transition: transform 0.25s ease, opacity 0.25s; animation: fp-card-in 0.6s 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.fp-slot:nth-child(2) .fp-card { animation-delay: 0.38s; }
+@keyframes fp-card-in { from { opacity: 0; transform: translateY(40px) scale(0.85); } to { opacity: 1; transform: none; } }
+.fp-card.free { cursor: pointer; }
+.fp-card.free:hover { transform: translateY(-8px) scale(1.03); }
+.fp-inner { position: relative; display: block; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.9s cubic-bezier(0.3, 0.7, 0.2, 1); }
+.fp-inner img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 14px; backface-visibility: hidden; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.65); }
+.fp-face { transform: rotateY(180deg); }
+.fp-card.picked .fp-inner img { box-shadow: 0 0 0 3px var(--pc), 0 0 40px color-mix(in srgb, var(--pc) 70%, transparent), 0 18px 50px rgba(0, 0, 0, 0.65); }
+.first-pick.revealed .fp-inner { transform: rotateY(180deg); }
+.first-pick.revealed .fp-slot:nth-child(2) .fp-inner { transition-delay: 0.15s; }
+.fp-who { min-height: 1.4em; font-size: 15px; font-weight: 800; color: var(--pc, var(--muted)); }
+.fp-status { margin: 0; font-size: clamp(15px, 2vw, 20px); font-weight: 700; color: #fff; min-height: 1.4em; }
+.first-pick.revealed .fp-status { font-size: clamp(22px, 3.2vw, 34px); animation: fp-pop 0.5s 0.9s cubic-bezier(0.2, 0.9, 0.3, 1.4) both; }
+@keyframes fp-pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+@media (max-height: 520px) { .first-pick { gap: 2vh; } .fp-banner span { padding: 6px 40px; } }
+
+/* ───── 進入對戰的 VS 動畫 ───── */
+.vs-intro { position: fixed; inset: 0; z-index: 70; pointer-events: none; background: #05070a; animation: vs-out 3.9s linear both; overflow: hidden; }
+@keyframes vs-out { 0%, 86% { opacity: 1; } 100% { opacity: 0; } }
+.vs-stage { position: absolute; inset: 0; animation: vs-shake 3.9s linear both; }
+@keyframes vs-shake {
+  0%, 30% { transform: none; }
+  31% { transform: translate(-14px, 6px); } 32% { transform: translate(12px, -8px); } 33% { transform: translate(-8px, 4px); }
+  34% { transform: translate(6px, -2px); } 36% { transform: none; } 100% { transform: none; }
+}
+.vs-side { position: absolute; top: 0; bottom: 0; width: 58vw; }
+.vs-side.l { left: 0; clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%); animation: vs-in-l 3.9s cubic-bezier(0.5, 0, 0.75, 0) both; }
+.vs-side.r { right: 0; clip-path: polygon(18% 0, 100% 0, 100% 100%, 0 100%); animation: vs-in-r 3.9s cubic-bezier(0.5, 0, 0.75, 0) both; }
+@keyframes vs-in-l { 0% { transform: translateX(-100%); } 30% { transform: translateX(0); } 33% { transform: translateX(-2.5%); } 38%, 100% { transform: translateX(0); } }
+@keyframes vs-in-r { 0% { transform: translateX(100%); } 30% { transform: translateX(0); } 33% { transform: translateX(2.5%); } 38%, 100% { transform: translateX(0); } }
+.vs-art { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--pc) 55%, #000), #05070a 75%); }
+.vs-art img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  -webkit-mask-image: radial-gradient(ellipse 75% 85% at 50% 45%, #000 45%, transparent 100%);
+  mask-image: radial-gradient(ellipse 75% 85% at 50% 45%, #000 45%, transparent 100%);
+  animation: vs-zoom 3.9s ease-out both;
+}
+.vs-side.l .vs-art img { object-position: 40% 30%; }
+.vs-side.r .vs-art img { object-position: 60% 30%; }
+@keyframes vs-zoom { 0% { transform: scale(1.18); } 100% { transform: scale(1.02); } }
+/* 斜邊的發光線 */
+.vs-side::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+.vs-side.l::after { background: linear-gradient(100deg, transparent 72%, color-mix(in srgb, var(--pc) 70%, transparent) 81%, transparent 84%); }
+.vs-side.r::after { background: linear-gradient(100deg, transparent 16%, color-mix(in srgb, var(--pc) 70%, transparent) 19%, transparent 28%); }
+.vs-name {
+  position: absolute; bottom: 9vh; display: flex; flex-direction: column; gap: 2px; color: #fff; text-shadow: 0 2px 14px rgba(0, 0, 0, 0.9);
+  animation: vs-name 3.9s ease-out both;
+}
+.vs-side.l .vs-name { left: 6vw; }
+.vs-side.r .vs-name { right: 6vw; text-align: right; }
+.vs-name b { font-size: clamp(22px, 3.6vw, 44px); font-weight: 900; letter-spacing: 0.04em; }
+.vs-name span { font-size: clamp(13px, 1.6vw, 18px); font-weight: 700; color: color-mix(in srgb, var(--pc) 45%, #fff); }
+@keyframes vs-name { 0%, 36% { opacity: 0; transform: translateY(20px); } 46%, 100% { opacity: 1; transform: none; } }
+.vs-flash { position: absolute; inset: 0; background: #fff; opacity: 0; animation: vs-flash 3.9s linear both; }
+@keyframes vs-flash { 0%, 29% { opacity: 0; } 30.5% { opacity: 0.85; } 40% { opacity: 0; } 100% { opacity: 0; } }
+.vs-ring {
+  position: absolute; left: 50%; top: 50%; width: 40vmin; height: 40vmin; margin: -20vmin 0 0 -20vmin; border-radius: 50%;
+  border: 6px solid rgba(255, 220, 140, 0.9); box-shadow: 0 0 40px rgba(255, 190, 90, 0.9), inset 0 0 40px rgba(255, 190, 90, 0.6);
+  opacity: 0; animation: vs-ring 3.9s ease-out both;
+}
+@keyframes vs-ring { 0%, 30% { opacity: 0; transform: scale(0.2); } 32% { opacity: 1; } 48% { opacity: 0; transform: scale(3.2); } 100% { opacity: 0; transform: scale(3.2); } }
+.vs-text {
+  position: absolute; left: 50%; top: 50%; width: 0; height: 0; display: flex; align-items: center; justify-content: center;
+  font-size: clamp(90px, 22vmin, 230px); font-weight: 900; font-style: italic; letter-spacing: -0.04em; white-space: nowrap; line-height: 1;
+  color: #fff; -webkit-text-stroke: 3px #ffcf6b;
+  text-shadow: 0 0 30px rgba(255, 190, 90, 0.95), 0 0 80px rgba(224, 88, 127, 0.8), 0 8px 0 rgba(0, 0, 0, 0.55);
+  opacity: 0; animation: vs-text 3.9s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+@keyframes vs-text {
+  0%, 30% { opacity: 0; transform: scale(3.2) rotate(-12deg); }
+  37% { opacity: 1; transform: scale(0.88) rotate(-6deg); }
+  42% { transform: scale(1.06) rotate(-6deg); }
+  48%, 82% { opacity: 1; transform: scale(1) rotate(-6deg); }
+  100% { opacity: 0; transform: scale(1.25) rotate(-6deg); }
+}
+
+/* 我的牌組：先攻／後攻卡面 */
+.turn-cards { display: flex; gap: 20px; flex-wrap: wrap; }
+.turn-slot { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.turn-img { width: 150px; aspect-ratio: 5 / 7; border-radius: 10px; overflow: hidden; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line); }
+.turn-img img { width: 100%; height: 100%; object-fit: cover; }
+.turn-slot label.btn { cursor: pointer; }

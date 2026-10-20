@@ -8,6 +8,7 @@ export interface AnimStep {
   ms: number; // 這一步之後停多久再做下一步
   turnStart?: PlayerId; // 這一步是回合開始：顯示回合橫幅
   attack?: { uid: string; slot: number; mode: 'front' | 'side' | 'direct' }; // 這一步是攻擊宣告
+  firstDecided?: { first: PlayerId; firstCard: 0 | 1; picks: [0 | 1, 0 | 1] }; // 這一步是先後攻翻牌
 }
 
 // 攻擊動畫：攻擊角色先往後蓄力，再衝向正面的格子，撞擊時出現衝擊波與斬擊特效，被攻擊的角色震動，最後彈回原位
@@ -84,6 +85,11 @@ export function groupEvents(events: GameEvent[]): AnimStep[] {
       flush();
       steps.push({ events: [e], ms: lastReveal ? 360 : REVEAL_MS });
       lastReveal = true;
+      continue;
+    }
+    if (e.t === 'firstDecided') {
+      flush();
+      steps.push({ events: [e], ms: 3600, firstDecided: { first: e.first, firstCard: e.firstCard, picks: e.picks } });
       continue;
     }
     if (e.t === 'phase' && e.phase === 'stand') {
