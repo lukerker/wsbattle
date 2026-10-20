@@ -12,6 +12,19 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace", "@ws/server"],
       "port": 8787
+    },
+    {
+      "name": "server-devlogin",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["packages/server/src/main.ts"],
+      "env": { "PORT": "8788", "FIREBASE_PROJECT_ID": "" },
+      "port": 8788
+    },
+    {
+      "name": "client-devlogin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["exec", "--workspace", "@ws/client", "--", "vite", "--port", "5174", "--mode", "devlogin"],
+      "port": 5174
     }
   ]
 }

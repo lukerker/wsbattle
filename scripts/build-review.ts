@@ -7,6 +7,7 @@ const key = process.argv[2] ?? 'BTR-W107';
 const mod = await import(`../packages/engine/src/cards/${key.toLowerCase()}.ts`);
 const cards: Card[] = mod.cards;
 const deck: { cardId: string; count: number }[] = mod.deck;
+const source: string = mod.source ?? '讀圖'; // 日文原文的來源
 const count = new Map(deck.map((d) => [d.cardId, d.count]));
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -27,7 +28,8 @@ const rows = cards.map((c) => {
     : '<tr><td colspan="3">（無效果，純數值）</td></tr>';
   return `<section><h2>${esc(c.id)}　${esc(c.name.zh)} <small>${esc(c.name.ja)}</small> ×${count.get(c.id) ?? 0}</h2>
 <p>${esc(head)}${traits ? `｜特徵：${esc(traits)}` : ''}</p>
-<table><tr><th>日文原文（讀圖）</th><th>繁體中文</th><th>程式化結果</th></tr>${body}</table>
+<table><tr><th>日文原文（${source}）</th><th>繁體中文</th><th>程式化結果</th></tr>${body}</table>
+${c.playCondition ? `<p>出牌條件：<code>${esc(JSON.stringify(c.playCondition))}</code></p>` : ''}
 ${c.note ? `<p class="note">白話：${esc(c.note)}</p>` : ''}</section>`;
 }).join('\n');
 

@@ -1,6 +1,6 @@
 // 回合流程的整體檢查：一位玩家把整個回合跑完才換人、每回合都抽牌、先攻第 1 回合只能攻擊 1 次。
 import { describe, expect, it } from 'vitest';
-import { E, DECKS, GBF_DECK, GCR_DECK, choose, decideFirst, ok, oppTurn, order, put, scene, top, yes } from './test-utils.ts';
+import { E, DECKS, GBF_DECK, GCR_DECK, LRC_DECK, choose, decideFirst, ok, oppTurn, order, put, scene, top, yes } from './test-utils.ts';
 import type { GameState, PlayerId } from './types.ts';
 
 const ORDER = ['stand', 'draw', 'clock', 'main', 'climax', 'attack', 'encore', 'end'];
@@ -45,6 +45,14 @@ describe('回合流程', () => {
 
   it.each([1, 2, 3, 4, 5, 6, 7, 8])('Girls Band Cry 隨機對打（種子 %i）：每個合法動作都能執行，回合流程正確', (seed) => {
     for (const decks of [[GCR_DECK, DECKS[1]], [DECKS[0], GCR_DECK], [GBF_DECK, GCR_DECK], [DECKS[1], GBF_DECK]] as [string[], string[]][]) {
+      const turns = randomGame(seed, decks);
+      expect(turns.length).toBeGreaterThan(4);
+      for (const t of turns.slice(0, -1)) expect(t.phases).toEqual(ORDER);
+    }
+  });
+
+  it.each([1, 2, 3, 4, 5, 6, 7, 8])('莉可麗絲 隨機對打（種子 %i）：每個合法動作都能執行，回合流程正確', (seed) => {
+    for (const decks of [[LRC_DECK, DECKS[0]], [GBF_DECK, LRC_DECK], [LRC_DECK, LRC_DECK]] as [string[], string[]][]) {
       const turns = randomGame(seed, decks);
       expect(turns.length).toBeGreaterThan(4);
       for (const t of turns.slice(0, -1)) expect(t.phases).toEqual(ORDER);

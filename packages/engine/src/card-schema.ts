@@ -81,6 +81,7 @@ export type Condition =
   | { kind: 'climaxInZone'; name?: string } // 沒給名稱＝名場面區有任何名場面
   | { kind: 'sourceInSlot'; slots: number[] } // 此卡在指定的格子（0～2 前列左中右、3～4 後列）
   | { kind: 'opponentInFront' } // 此卡的正面有對手的角色
+  | { kind: 'opponentInFrontLevel'; level: number } // 此卡的正面的對手角色等級是 N
   | { kind: 'myTurn' };
 
 export type Cost =
@@ -90,7 +91,9 @@ export type Cost =
   | { kind: 'discardSource' } // 助太刀：手牌的此卡放到休息室
   | { kind: 'sendSourceToWaitingRoom' } // 從舞台把此卡放到休息室
   | { kind: 'rest'; selector: Selector } // 把其他卡橫置
-  | { kind: 'sourceToDeckBottom' }; // 把舞台上的此卡放到牌組下方
+  | { kind: 'sourceToDeckBottom' } // 把舞台上的此卡放到牌組下方
+  | { kind: 'sourceToMemory' } // 把此卡（助太刀：手牌的此卡）放到回憶區
+  | { kind: 'deckTopToClock' }; // 把自己牌組上方 1 張放到傷害區
 
 export type Duration = 'whileActive' | 'thisTurn' | 'untilNextOpponentTurnEnd'; // 最後一個：到下次的對手回合結束前
 
@@ -115,7 +118,7 @@ export type Effect =
       then?: Effect[]; // 有加入手牌時才執行
     }
   | { op: 'searchDeck'; filter: CardFilter; upTo: number; reveal: true; shuffle: boolean }
-  | { op: 'revealTopCheck'; filter: CardFilter; ifMatch: Effect[] } // 公開牌組上方1張（翻到牌組旁邊給玩家看）：符合條件就加到手牌並執行 ifMatch，否則放回原位
+  | { op: 'revealTopCheck'; filter: CardFilter; ifMatch: Effect[]; matchTo?: 'hand' | 'deckTop' } // 公開牌組上方1張（翻到牌組旁邊給玩家看）：符合條件就加到手牌並執行 ifMatch，否則放回原位；matchTo deckTop＝不論結果都放回原位，符合才執行 ifMatch
   | { op: 'revealMill'; n: number; bind: string; result: 'draw' | 'damage' } // 把牌組上方 N 張翻開給玩家看，再放到休息室（集中、翻牌造成傷害）；result 決定提示文字
   | { op: 'returnSourceToHand' }
   | { op: 'returnSourceToSlot'; state: 'rest' } // 安可：橫置放回原位
@@ -134,7 +137,11 @@ export type Effect =
   | { op: 'lookTopReorder'; n: number } // 看自己牌組上方最多 N 張，照喜歡的順序放回上方
   | { op: 'lookOpponentTopArrange'; n: number } // 看對手牌組上方最多 N 張，選最多 N 張照喜歡的順序放回上方，其餘放到休息室
   | { op: 'restAndMoveToBack'; target: Selector } // 選 1 張角色，橫置並移到後列沒有角色的格子
-  | { op: 'sourceToDeckBottom' }; // 把此卡（事件在解決領域、或在舞台上）放到牌組最下面
+  | { op: 'sourceToDeckBottom' } // 把此卡（事件在解決領域、或在舞台上）放到牌組最下面
+  | { op: 'sourceToMemory' } // 把此卡（事件在解決領域、舞台上、或助太刀時在手牌）放到回憶區（「このカードを思い出にする」）
+  | { op: 'lookTopPlace' } // 看自己牌組上方 1 張，放回上方或下方
+  | { op: 'may'; prompt: string; then: Effect[] } // 效果中途的「…してよい」：問玩家要不要做
+  | { op: 'returnTriggerCardToSlot' }; // 把誘發這個能力的角色（剛從舞台放到休息室）【橫置】放回原本的格子
 
 export type TriggerEvent =
   | { event: 'placedFromHandToStage' } // 此卡從手牌放置到舞台時
@@ -150,7 +157,8 @@ export type TriggerEvent =
   | { event: 'myClimaxPhaseStart' }
   | { event: 'opponentAttackPhaseStart' }
   | { event: 'myTriggerChecked'; filter?: CardFilter } // 你的判定翻出符合條件的卡時
-  | { event: 'allyFrontAttacked'; filter?: CardFilter }; // 你的其他角色（符合條件）被正打時
+  | { event: 'allyFrontAttacked'; filter?: CardFilter } // 你的其他角色（符合條件）被正打時
+  | { event: 'allyLeavesStageToWaitingRoom'; filter?: CardFilter }; // 你的其他角色（符合條件）從舞台被放到休息室時
 
 export type Keyword =
   | { id: 'assist' } // 應援（【永】，效果本身用 modifyPower 描述）
@@ -164,6 +172,7 @@ export interface Ability {
   kind: 'continuous' | 'auto' | 'activated' | 'event'; // event＝事件卡打出時結算的效果
   keyword?: Keyword;
   trigger?: TriggerEvent; // auto 才有
+  alsoOn?: TriggerEvent; // 「…時か…時」：另一個誘發時機
   timing?: 'counter'; // 助太刀
   condition?: Condition;
   cost?: Cost[];
@@ -187,6 +196,7 @@ export interface Card {
   triggers: TriggerIcon[];
   traits: Text[];
   abilities: Ability[];
+  playCondition?: Condition; // 「…がいないなら、手札からプレイできない」：出牌的額外條件
   note?: string; // 白話效果說明（實戰拆解）
   status: { translated: boolean; coded: boolean; verified: boolean; tested: boolean };
 }

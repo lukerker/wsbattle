@@ -8,7 +8,7 @@ $out = Join-Path $root '_web'
 New-Item -ItemType Directory -Force (Join-Path $out 'vs') | Out-Null
 
 # 檔名開頭 → 系列代碼（卡號的第一段）；沒列的就直接用檔名開頭
-$code = @{ 'AVE' = 'BD'; 'GBC' = 'GCR' }
+$code = @{ 'AVE' = 'BD'; 'GBC' = 'GCR'; 'LCR' = 'LRC' }
 
 $jpeg = [Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' }
 function Save-Resized([string]$src, [string]$dst, [int]$maxSide, [long]$quality) {

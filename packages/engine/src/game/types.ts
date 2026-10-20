@@ -79,6 +79,7 @@ export type Step =
 export interface FrameCtx {
   battleOpp?: string; // 誘發時的戰鬥對手（最終情報〔8.11.2〕）
   slot?: Slot; // 離開舞台時原本的格子（安可用）
+  target?: string; // 誘發這個能力的其他卡（「其他角色被放到休息室時」的那張角色）
 }
 
 // 效果之外，用來表達費用與流程的內部動作
@@ -91,6 +92,7 @@ export type InternalOp =
   | { op: '_sendSourceToWR' }
   | { op: '_rest'; selector: Selector }
   | { op: '_sourceToDeckBottom' }
+  | { op: '_deckTopToClock' }
   | { op: '_fireUsedBackup' }
   | { op: '_eventDone' };
 

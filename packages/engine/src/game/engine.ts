@@ -59,7 +59,10 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       from: { p, zone: from, ...(opts.fromSlot !== undefined ? { slot: opts.fromSlot } : {}) },
       to: { p: tp, zone: to, ...(opts.slot !== undefined ? { slot: opts.slot } : {}) },
     });
-    if (leaving && to === 'waiting') fx.fireFor(s, uid, 'sourceLeavesStageToWaitingRoom', { slot: leaving.slot }, leaving.abilities, p); // 安可等
+    if (leaving && to === 'waiting') {
+      fx.fireFor(s, uid, 'sourceLeavesStageToWaitingRoom', { slot: leaving.slot }, leaving.abilities, p); // 安可等
+      fx.fireAllyLeaves(s, uid, p, leaving.slot);
+    }
   }
 
   const then = (s: GameState, ...steps: Step[]) => s.queue.push(...steps.reverse());
@@ -173,6 +176,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     if (card.type !== 'climax' && (card.level ?? 0) > playerLevel(s, p)) return `等級不足（需要 Lv${card.level}）`;
     if (!colorOk(s, p, card)) return '顏色條件不符：等級區或傷害區沒有同色的卡';
     if ((card.cost ?? 0) > s.players[p].stock.length) return `能量不足（需要 ${card.cost}）`;
+    if (card.playCondition && !fx.condOk(s, card.playCondition, uid, p, {})) return '不符合這張卡的出牌條件';
     return null;
   }
 
