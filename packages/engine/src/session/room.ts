@@ -1,5 +1,6 @@
 // 一個房間：兩個座位＋觀戰者＋一局遊戲。不碰網路，伺服器與測試都用這份。
 import type { Card } from '../card-schema.ts';
+import { DECK_SIZE, deckSummary, isPlayable, mainSeries } from '../deck-rules.ts';
 import { createEngine, type Engine } from '../game/engine.ts';
 import type { Action, GameEvent, GameState, PlayerId, Pending } from '../game/types.ts';
 import { viewFor } from '../game/view.ts';
@@ -17,20 +18,14 @@ interface Seat {
   series: string;
 }
 
-// 構築規則〔5.1.2〕：50 張整、同名卡最多 4 張、名場面合計最多 8 張；卡片的效果也要已經做完並通過測試
+// 構築規則〔5.1.2〕（見 deck-rules.ts）：對戰時一定要剛好 50 張，而且每張卡的效果都已經做完並通過測試
 export function validateDeck(db: ReadonlyMap<string, Card>, deck: unknown): string | null {
-  if (!Array.isArray(deck) || deck.length !== 50) return '牌組必須剛好 50 張';
-  const byName = new Map<string, number>();
-  let climax = 0;
-  for (const id of deck) {
-    const c = typeof id === 'string' ? db.get(id) : undefined;
-    if (!c) return `找不到卡片：${String(id)}`;
-    if (!c.status.coded || !c.status.tested) return `「${c.name.zh}」的效果還沒完成，不能用來對戰`;
-    byName.set(c.name.ja, (byName.get(c.name.ja) ?? 0) + 1);
-    if (c.type === 'climax') climax++;
-  }
-  for (const [name, n] of byName) if (n > 4) return `同名的卡最多 4 張：「${name}」有 ${n} 張`;
-  if (climax > 8) return `名場面最多 8 張，你的牌組有 ${climax} 張`;
+  if (!Array.isArray(deck) || deck.some((x) => typeof x !== 'string')) return '牌組必須剛好 50 張';
+  const sum = deckSummary(db, deck as string[]);
+  if (sum.invalid) return sum.invalid;
+  if (sum.total !== DECK_SIZE) return `牌組必須剛好 ${DECK_SIZE} 張（現在 ${sum.total} 張）`;
+  const bad = (deck as string[]).map((id) => db.get(id)!).find((c) => !isPlayable(c));
+  if (bad) return `「${bad.name.zh}」的效果還沒完成，不能用來對戰`;
   return null;
 }
 
@@ -76,7 +71,7 @@ export class GameRoom {
     const err = validateDeck(this.db, deck);
     if (err) return { error: err };
     const cards = deck as string[];
-    this.seats[free] = { user, deck: cards, deckName, series: seriesOf(cards[0]!) };
+    this.seats[free] = { user, deck: cards, deckName, series: mainSeries(cards) };
     this.touch();
     return { seat: free };
   }

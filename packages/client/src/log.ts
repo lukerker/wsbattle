@@ -9,7 +9,7 @@ export interface LogEntry {
   turn?: boolean; // 回合開始的分隔線
 }
 
-const ICON: Record<string, string> = {
+export const TRIGGER_ZH: Record<string, string> = {
   soul: '魂', comeback: '木門', pool: '錢袋', draw: '書本', treasure: '金條', gate: '門', choice: '選擇',
   return: '旋風', shot: '射擊', standby: '待機', chance: '機會', discovery: '發現', focus: '集中',
 };
@@ -48,7 +48,7 @@ export function buildLog(events: GameEvent[], view: GameView): LogEntry[] {
         add(ownerOf(e.uid), `「${nameByUid(e.uid)}」${MODE[e.mode]}`);
         break;
       case 'trigger':
-        add(ownerOf(e.uid), `判定：「${nameOf(e.cardId)}」${e.icons.length ? `（${e.icons.map((i) => ICON[i] ?? i).join('、')}）` : '（沒有判定標誌）'}`);
+        add(ownerOf(e.uid), `判定：「${nameOf(e.cardId)}」${e.icons.length ? `（${e.icons.map((i) => TRIGGER_ZH[i] ?? i).join('、')}）` : '（沒有判定標誌）'}`);
         break;
       case 'damage':
         add(e.p, `受到 ${e.n} 點傷害`);

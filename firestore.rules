@@ -10,6 +10,15 @@ service cloud.firestore {
         && (!('first' in request.resource.data) || (request.resource.data.first is string && request.resource.data.first.size() < 400000))
         && (!('last' in request.resource.data) || (request.resource.data.last is string && request.resource.data.last.size() < 400000));
     }
+    // 自己組的牌組：只有本人能讀寫；最多 50 張、名稱 30 字以內（其餘構築規則由組牌器與對戰伺服器檢查）
+    match /decks/{uid}/items/{deckId} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'cards', 'updatedAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 30
+        && request.resource.data.cards is list && request.resource.data.cards.size() <= 50
+        && request.resource.data.updatedAt is number;
+    }
     // 其他一律不開放
     match /{document=**} {
       allow read, write: if false;

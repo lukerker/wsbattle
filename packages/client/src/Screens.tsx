@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { RoomInfo } from '@ws/engine';
+import { deckSummary, type RoomInfo } from '@ws/engine';
 import { authErrorText, type Auth } from './auth.ts';
 import { CardFace, CardInfo } from './CardFace.tsx';
-import { PRESET_DECKS, cardById, seriesInfo, type DeckInfo } from './meta.ts';
+import { DeckBuilder, SeriesBrowser } from './DeckBuilder.tsx';
+import { deckSeries, deleteDeck, saveDeck, useMyDecks, type SavedDeck } from './decks.ts';
+import { PRESET_DECKS, SERIES, SERIES_CARDS, cardById, seriesInfo, type DeckInfo } from './meta.ts';
 import { net, useNet } from './net.ts';
 import { DEFAULT_TURN_CARDS, fileToCardImage, loadTurnCards, saveTurnCard, type TurnCards } from './turnCards.ts';
 
@@ -72,34 +74,67 @@ export function LoginScreen({ auth, onDone }: { auth: Auth; onDone: (name: strin
 
 // ───── 牌組 ─────
 const DEFAULT_DECK_KEY = 'ws-default-deck';
-export const useDecks = () => {
-  const [defId, setDefId] = useState(() => localStorage.getItem(DEFAULT_DECK_KEY) ?? PRESET_DECKS[0]!.id);
-  const decks: DeckInfo[] = PRESET_DECKS; // 之後這裡會加上玩家自己組的牌組（存在雲端）
-  const setDefault = (id: string) => {
-    localStorage.setItem(DEFAULT_DECK_KEY, id);
-    setDefId(id);
-  };
-  const def = decks.find((d) => d.id === defId) ?? decks[0]!;
-  return { decks, def, setDefault };
+const readDefault = () => {
+  try {
+    return localStorage.getItem(DEFAULT_DECK_KEY);
+  } catch {
+    return null;
+  }
+};
+const toInfo = (d: SavedDeck): DeckInfo => {
+  const sum = deckSummary(cardById, d.cards);
+  return { id: d.id, name: d.name, series: deckSeries(d), cards: d.cards, preset: false, notReady: sum.notReady };
 };
 
-function DeckPicker({ decks, value, onChange }: { decks: DeckInfo[]; value: string; onChange: (id: string) => void }) {
+// 可以選的牌組：自己的（最近編輯的在前）＋系統預組。預設牌組不能用（不到 50 張等）時，改用第一副能用的
+export const useDecks = () => {
+  const { decks: mine, loaded } = useMyDecks();
+  const [defId, setDefId] = useState(readDefault);
+  const own = useMemo(() => mine.map(toInfo), [mine]);
+  const setDefault = (id: string) => {
+    try {
+      localStorage.setItem(DEFAULT_DECK_KEY, id);
+    } catch { /* 瀏覽器不給存就只記在這次 */ }
+    setDefId(id);
+  };
+  const usable = [...own.filter((d) => !d.notReady), ...PRESET_DECKS];
+  const def = usable.find((d) => d.id === defId) ?? usable[0]!;
+  return { own, presets: PRESET_DECKS, loaded, def, setDefault };
+};
+
+// 建房、加入時選牌組：自己的牌組在上面，系統預組收起來（沒有自己的牌組、或正選著預組時自動展開）
+function DeckPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const { own, presets } = useDecks();
+  const [manual, setManual] = useState<boolean | null>(null);
+  const showPresets = manual ?? (own.length === 0 || presets.some((p) => p.id === value));
+  const opt = (d: DeckInfo) => (
+    <button key={d.id} type="button" disabled={!!d.notReady} className={`deck-opt${d.id === value ? ' on' : ''}`} style={{ ['--pc' as string]: seriesInfo(d.series).accent }} onClick={() => onChange(d.id)}>
+      <b>{d.name}</b>
+      <span>{seriesInfo(d.series).label}・{d.notReady ?? `${d.cards.length} 張`}</span>
+    </button>
+  );
   return (
     <div className="deck-picker">
-      {decks.map((d) => (
-        <button key={d.id} type="button" className={`deck-opt${d.id === value ? ' on' : ''}`} style={{ ['--pc' as string]: seriesInfo(d.series).accent }} onClick={() => onChange(d.id)}>
-          <b>{d.name}</b>
-          <span>{seriesInfo(d.series).label}・{d.cards.length} 張</span>
-        </button>
-      ))}
+      {own.map(opt)}
+      <button type="button" className="fold" onClick={() => setManual(!showPresets)}>系統預組（{presets.length}）{showPresets ? '▴' : '▾'}</button>
+      {showPresets && presets.map(opt)}
     </div>
   );
 }
 
+type DeckView = { kind: 'list' } | { kind: 'build'; deck: SavedDeck | null; series: string } | { kind: 'browse'; series: string };
+
 export function DecksScreen({ onBack }: { onBack: () => void }) {
-  const { decks, def, setDefault } = useDecks();
+  const { own, presets, loaded, def, setDefault } = useDecks();
+  const { decks: mine, error } = useMyDecks();
+  const { user } = useNet();
+  const [view, setView] = useState<DeckView>({ kind: 'list' });
   const [open, setOpen] = useState<DeckInfo | null>(null);
   const [pick, setPick] = useState<string | null>(null);
+  const [newDeck, setNewDeck] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState<boolean | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const showPresets = presetsOpen ?? (loaded && own.length === 0);
 
   const grouped = useMemo(() => {
     if (!open) return [];
@@ -108,34 +143,114 @@ export function DecksScreen({ onBack }: { onBack: () => void }) {
     return [...m.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [open]);
 
+  if (view.kind === 'build') return <DeckBuilder deck={view.deck} series={view.series} onClose={() => setView({ kind: 'list' })} />;
+  if (view.kind === 'browse') return <SeriesBrowser series={view.series} onBack={() => setView({ kind: 'list' })} />;
+
+  const copy = async (p: DeckInfo) => {
+    setErr(null);
+    try {
+      const d = await saveDeck({ name: `${p.name}（複製）`, cards: p.cards });
+      setView({ kind: 'build', deck: d, series: p.series });
+    } catch (e) {
+      setErr(`複製失敗：${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+  const remove = async (d: DeckInfo) => {
+    if (!window.confirm(`確定要刪除「${d.name}」嗎？刪除後不能復原。`)) return;
+    setErr(null);
+    try {
+      await deleteDeck(d.id);
+    } catch (e) {
+      setErr(`刪除失敗：${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+  const seriesList = Object.keys(SERIES).filter((s) => SERIES_CARDS.has(s));
+
   return (
     <div className="screen">
       <header className="scr-head"><button className="btn ghost" onClick={onBack}>← 回大廳</button><h2>我的牌組</h2></header>
       <section className="scr-sec">
-        <h3>系統預組</h3>
-        <div className="deck-grid">
-          {decks.filter((d) => d.preset).map((d) => (
-            <div key={d.id} className="deck-card" style={{ ['--pc' as string]: seriesInfo(d.series).accent }}>
-              <div className="deck-ban" />
-              <b>{d.name}</b>
-              <span>{seriesInfo(d.series).label}・{d.cards.length} 張</span>
-              <div className="actions">
-                <button className="btn" onClick={() => { setOpen(d); setPick(null); }}>查看牌表</button>
-                <button className={`btn${def.id === d.id ? ' primary' : ''}`} onClick={() => setDefault(d.id)}>{def.id === d.id ? '✓ 預設牌組' : '設為預設'}</button>
+        <div className="sec-head">
+          <h3>我的牌組</h3>
+          <button className="btn primary" disabled={!user} onClick={() => setNewDeck(true)}>＋ 建立新牌組</button>
+        </div>
+        {!user && <p className="muted">連上伺服器後會載入你的牌組…</p>}
+        {user && !loaded && <p className="muted">載入中…</p>}
+        {(error || err) && <p className="err">{err ?? error}</p>}
+        {loaded && own.length === 0 && (
+          <div className="empty-deck">
+            <p>還沒有自己組的牌組。</p>
+            <p className="muted">可以從空白開始組，或把下面的系統預組「複製到我的牌組」再修改。</p>
+          </div>
+        )}
+        {own.length > 0 && (
+          <div className="deck-grid">
+            {own.map((d) => (
+              <div key={d.id} className="deck-card" style={{ ['--pc' as string]: seriesInfo(d.series).accent }}>
+                <div className="deck-ban" />
+                <b>{d.name}</b>
+                <span>{seriesInfo(d.series).label}・{d.cards.length} / 50 張{d.notReady ? `・${d.notReady}` : '・可以對戰'}</span>
+                <div className="actions">
+                  <button className="btn" onClick={() => setView({ kind: 'build', deck: mine.find((x) => x.id === d.id)!, series: d.series })}>編輯</button>
+                  <button className={`btn${def.id === d.id ? ' primary' : ''}`} disabled={!!d.notReady} onClick={() => setDefault(d.id)}>{def.id === d.id ? '✓ 預設牌組' : '設為預設'}</button>
+                  <button className="btn ghost" onClick={() => void remove(d)}>刪除</button>
+                </div>
               </div>
-            </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="scr-sec">
+        <h3>系列卡表</h3>
+        <div className="series-chips">
+          {seriesList.map((s) => (
+            <button key={s} className="series-chip" style={{ ['--pc' as string]: seriesInfo(s).accent }} onClick={() => setView({ kind: 'browse', series: s })}>
+              <b>{seriesInfo(s).label}</b>
+              <span>{SERIES_CARDS.get(s)!.length} 種卡</span>
+            </button>
           ))}
         </div>
       </section>
-      <TurnCardsSection />
+
       <section className="scr-sec">
-        <h3>自己組的牌組</h3>
-        <div className="empty-deck">
-          <p>還沒有自己組的牌組。</p>
-          <p className="muted">補充包的卡片開放之後，就可以在這裡自由組牌，並存到你的帳號。</p>
-          <button className="btn" disabled>＋ 建立新牌組（尚未開放）</button>
-        </div>
+        <button className="fold sec-fold" onClick={() => setPresetsOpen(!showPresets)}>系統預組（{presets.length}）{showPresets ? '▴' : '▾'}</button>
+        {showPresets && (
+          <div className="deck-grid">
+            {presets.map((d) => (
+              <div key={d.id} className="deck-card" style={{ ['--pc' as string]: seriesInfo(d.series).accent }}>
+                <div className="deck-ban" />
+                <b>{d.name}</b>
+                <span>{seriesInfo(d.series).label}・{d.cards.length} 張</span>
+                <div className="actions">
+                  <button className="btn" onClick={() => { setOpen(d); setPick(null); }}>查看牌表</button>
+                  <button className={`btn${def.id === d.id ? ' primary' : ''}`} onClick={() => setDefault(d.id)}>{def.id === d.id ? '✓ 預設牌組' : '設為預設'}</button>
+                  <button className="btn" disabled={!user} onClick={() => void copy(d)}>複製到我的牌組</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
+      <TurnCardsSection />
+
+      {newDeck && (
+        <div className="modal" onClick={() => setNewDeck(false)}>
+          <div className="dialog small" onClick={(e) => e.stopPropagation()}>
+            <h3>建立新牌組</h3>
+            <p className="lbl">要用哪個系列的卡？（組的時候也可以切換）</p>
+            <div className="deck-picker">
+              {seriesList.map((s) => (
+                <button key={s} type="button" className="deck-opt" style={{ ['--pc' as string]: seriesInfo(s).accent }} onClick={() => { setNewDeck(false); setView({ kind: 'build', deck: null, series: s }); }}>
+                  <b>{seriesInfo(s).label}</b>
+                  <span>{SERIES_CARDS.get(s)!.length} 種卡</span>
+                </button>
+              ))}
+            </div>
+            <div className="actions"><button className="btn ghost" onClick={() => setNewDeck(false)}>取消</button></div>
+          </div>
+        </div>
+      )}
 
       {open && (
         <div className="modal" onClick={() => setOpen(null)}>
@@ -264,7 +379,7 @@ export function LobbyScreen({ name, onDecks, onLogout, onRename }: { name: strin
 }
 
 function CreateDialog({ onClose }: { onClose: () => void }) {
-  const { decks, def, setDefault } = useDecks();
+  const { def, setDefault } = useDecks();
   const [spectators, setSpectators] = useState(true);
   const [max, setMax] = useState(6);
   return (
@@ -272,7 +387,7 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
       <div className="dialog small" onClick={(e) => e.stopPropagation()}>
         <h3>建立遊戲</h3>
         <p className="lbl">選擇牌組</p>
-        <DeckPicker decks={decks} value={def.id} onChange={setDefault} />
+        <DeckPicker value={def.id} onChange={setDefault} />
         <label className="switch-row">
           <input type="checkbox" checked={spectators} onChange={(e) => setSpectators(e.target.checked)} />
           <span>開放觀戰（觀戰者看不到任何一方的手牌）</span>
@@ -293,7 +408,7 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
 }
 
 function JoinDialog({ onClose }: { onClose: () => void }) {
-  const { decks, def, setDefault } = useDecks();
+  const { def, setDefault } = useDecks();
   const { peek } = useNet();
   const [code, setCode] = useState('');
 
@@ -328,7 +443,7 @@ function JoinDialog({ onClose }: { onClose: () => void }) {
         {canPlay && (
           <>
             <p className="lbl">選擇牌組</p>
-            <DeckPicker decks={decks} value={def.id} onChange={setDefault} />
+            <DeckPicker value={def.id} onChange={setDefault} />
           </>
         )}
         <div className="actions">

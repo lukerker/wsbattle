@@ -1,8 +1,8 @@
 import { useState, type CSSProperties, type PointerEvent } from 'react';
 import type { Card } from '@ws/engine';
 
-const COLOR_ZH: Record<string, string> = { yellow: '黃', red: '紅', blue: '藍', green: '綠', purple: '紫', colorless: '無' };
-const TYPE_ZH: Record<string, string> = { character: '角色', event: '事件', climax: '名場面' };
+export const COLOR_ZH: Record<string, string> = { yellow: '黃', red: '紅', blue: '藍', green: '綠', purple: '紫', colorless: '無' };
+export const TYPE_ZH: Record<string, string> = { character: '角色', event: '事件', climax: '名場面' };
 const KIND_ZH = { continuous: '永', auto: '自', activated: '起', event: '事件' } as const;
 
 export const BACK_URL = '/card-img/back.png';

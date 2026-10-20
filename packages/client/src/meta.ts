@@ -15,12 +15,21 @@ export const SERIES: Record<string, { label: string; accent: string }> = {
 };
 export const seriesInfo = (code: string) => SERIES[code] ?? { label: code, accent: '#8f99ad' };
 
+// 各系列的全部卡片（預組＋補充包），依卡號排序；組牌器、系列卡表用
+export const SERIES_CARDS = new Map<string, Card[]>();
+for (const c of [...cardById.values()].sort((a, b) => a.id.localeCompare(b.id))) {
+  const list = SERIES_CARDS.get(c.series) ?? [];
+  list.push(c);
+  SERIES_CARDS.set(c.series, list);
+}
+
 export interface DeckInfo {
   id: string;
   name: string;
   series: string;
   cards: string[]; // 50 張的卡號
   preset: boolean; // 系統預組
+  notReady?: string | null; // 還不能拿去對戰的原因（自己組的牌組）
 }
 
 export const PRESET_DECKS: DeckInfo[] = [

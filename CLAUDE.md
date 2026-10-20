@@ -21,7 +21,7 @@
 - 觀戰：用同一組代碼進入，只看公開資訊（看不到任何一方手牌），人數上限暫定 6～8 人
 - 建房時設定：時間限制（不限時為預設、整場 35 分鐘、每次操作限時）、觀戰開關與人數上限
 - 帳號：Email 註冊登入與 Google 登入（Firebase Auth），玩家自己取顯示名稱；牌組存雲端
-- 牌組：玩家自組，另有各系列固定預組（50 張）
+- 牌組：玩家自組，另有各系列固定預組（50 張）。「我的牌組」頁由上而下：我的牌組、系列卡表（各系列全卡，預組＋補充包）、系統預組（收起來；沒有自己的牌組時自動展開，可「複製到我的牌組」）。建房／加入時自己的牌組在上、預組收起來。組牌器篩選：搜尋（卡名／效果／卡號）、類型、等級、顏色、費用、魂傷；卡片格子不顯示價格與稀有度，標籤用卡片顏色。可以存不到 50 張的牌組，但不能超過構築上限；不到 50 張或含未完成的卡不能拿去對戰。構築規則在 `packages/engine/src/deck-rules.ts`，組牌器和伺服器共用
 - 不做：公開大廳、配對、排名、異步對戰、電腦對手、教學模式、內建語音
 - 開局流程：進房 → VS 動畫（雙方牌組主視覺從左右撞在一起，每間房只播一次）→ 雙方同時換牌 → 決定先後攻（兩張蓋著的大卡，雙方各點一張，都選好後翻開）。先後攻卡面用開房玩家在「我的牌組」上傳的圖（存 Firestore `turnCards/<uid>`），沒有就用系統預設（`cards/system first.png`、`system last.png`）
 - 對戰紀錄：場地右側兩個名牌之間顯示雙方動作與發動的效果（窄螢幕用上方「紀錄」按鈕開）；只用公開資訊
@@ -41,7 +41,7 @@ BanG Dream（MyGO × Ave Mujica 彈）、Girls Band Cry、莉可麗絲、鏈鋸�
 
 - TypeScript monorepo：`engine`（規則引擎＋房間與大廳邏輯）、`server`（WebSocket 對戰伺服器，部署在 Render）、`client`（React + Vite）
 - **對戰不放在 Firebase 逐步讀寫**（會很快用完免費額度，雲端函式冷啟動也會讓操作變慢）：房間狀態在伺服器記憶體，伺服器收操作 → 呼叫引擎 → 依每個人的權限過濾 → 廣播
-- Firebase 只用免費方案，只負責登入（Auth：Email、Google）；之後加牌組儲存（Firestore）。不需要 Blaze、不需要信用卡
+- Firebase 只用免費方案：登入（Auth：Email、Google）、自己組的牌組（Firestore `decks/<uid>/items/<deckId>`，只有本人能讀寫）、先後攻卡面。不需要 Blaze、不需要信用卡。改了 `firestore.rules` 要另外部署規則
 - 伺服器用 Firebase 公開金鑰驗證登入 token，只需要專案 ID（`FIREBASE_PROJECT_ID`）；沒設定時開放「測試登入」（只填名字，每個分頁是一個玩家）供開發用
 - 規則由伺服器判定，客戶端只送出操作；手牌、牌庫只存在伺服器端，傳給每位玩家前先過濾（`viewFor`）；觀戰者只拿公開版本
 - 引擎不綁任何平台：`packages/engine/src/session/` 是不碰網路的房間邏輯（`GameRoom`、`RoomManager`），伺服器和測試共用；訊息格式在 `protocol.ts`
@@ -113,7 +113,7 @@ packages/client
 - `npm run dev --workspace @ws/server`：啟動對戰伺服器（埠 8787）；`npm run dev --workspace @ws/client`：啟動前端（http://localhost:5173），卡圖由開發伺服器從 `cards/` 提供。兩個要同時開；沒設 Firebase 時是測試登入，開兩個分頁就是兩位玩家，第三個分頁可以測觀戰
 - `npm test`：跑引擎、卡片效果、房間與連線的測試
 - `npm run typecheck`：型別檢查（engine）
-- 部署前端：`npm run build --workspace @ws/client` 後 `npx firebase-tools deploy --only hosting`（要在有 `cards/` 的這台電腦做）；伺服器：`git push` 到 main，Render 自動部署
+- 部署前端：`npm run build --workspace @ws/client` 後 `npx firebase-tools deploy --only hosting`；改了 Firestore 規則加上 `npx firebase-tools deploy --only firestore:rules`（要在有 `cards/` 的這台電腦做）；伺服器：`git push` 到 main，Render 自動部署
 - `powershell -ExecutionPolicy Bypass -File scripts/prepare-images.ps1`：把系統先攻／後攻卡和各系列 `*_VS.jpg` 縮成網頁用的圖（`cards/_web/`），新增 VS 圖後要跑一次再部署前端
 - `node scripts/build-review.ts BTR-W107`：產生 `docs/review/` 的三欄核對表
 - PowerShell 5.1 的 `Set-Content/Add-Content -Encoding utf8` 會加 BOM，寫 JSON 檔要用 Write 工具或 .NET UTF8Encoding(false)
