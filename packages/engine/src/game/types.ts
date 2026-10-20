@@ -125,7 +125,7 @@ export type Pending =
   | { kind: 'attackDeclare'; player: PlayerId }
   | { kind: 'levelUp'; player: PlayerId; options: string[] }
   | { kind: 'encoreChoose'; player: PlayerId; options: string[] }
-  | { kind: 'select'; player: PlayerId; prompt: string; options: string[]; min: number; max: number; shown?: string[] } // shown：一起顯示的卡（例如看牌組上方 N 張時，全部翻開的牌）
+  | { kind: 'select'; player: PlayerId; prompt: string; options: string[]; min: number; max: number; shown?: string[]; ordered?: boolean; button?: string } // ordered：點選的順序有意義（例如放回牌組上方的順序） // shown：一起顯示的卡（例如看牌組上方 N 張時，全部翻開的牌）
   | { kind: 'acknowledge'; player: PlayerId; prompt: string; cards: string[]; button?: string } // 公開的卡：看過按確認（button：按鈕文字）
   | { kind: 'confirm'; player: PlayerId; prompt: string }
   | { kind: 'chooseSlot'; player: PlayerId; prompt: string; slots: Slot[]; owner?: PlayerId } // owner：格子是誰的舞台（沒給＝選擇的人自己）

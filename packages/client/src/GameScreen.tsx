@@ -516,7 +516,7 @@ function pendingHint(p: Pending): string {
     case 'main': return '把手牌拖到格子出牌、拖動角色換位置、點選角色使用起動能力；做完按「結束主要階段」。';
     case 'climax': return '可以把名場面拖到名場面區，或按「不打名場面」。';
     case 'attackDeclare': return '點選發光的前列角色，選擇正打、側打或直接攻擊；不攻擊就按「結束攻擊」。';
-    case 'counter': return '對手正打你的角色：可以使用助太刀。';
+    case 'counter': return '對手正打你的角色：可以使用 1 張助太刀或反擊事件。';
     case 'levelUp': return '傷害區滿 7 張：選 1 張放到等級區（升級）。';
     case 'encoreChoose': return '選 1 張倒置的角色放進休息室（之後可以安可）。';
     case 'handLimit': return `手牌超過 7 張：選 ${p.count} 張丟掉。`;
@@ -541,18 +541,22 @@ function PromptSheet({ pending: p, view, seat, act, name, cardOf: cardLookup }: 
     setPicked((cur) => (cur.includes(uid) ? cur.filter((u) => u !== uid) : max === 1 ? [uid] : cur.length < max ? [...cur, uid] : cur));
 
   // shown：一起顯示但不能選的卡（看牌時翻開的其他牌）
+  const ordered = p.kind === 'select' && !!p.ordered;
   const cards = (options: string[], max: number, shown?: string[]) => (
     <div className="opts">
       {(shown ?? options).map((uid) => {
         const can = options.includes(uid) && max > 0;
+        const order = ordered ? picked.indexOf(uid) : -1;
         return (
-          <CardFace
-            key={uid}
-            card={cardOf(uid)}
-            selected={picked.includes(uid)}
-            dim={!can && !!shown}
-            onClick={() => { if (can) toggle(uid, max); setFocus(cardOf(uid)); }}
-          />
+          <div key={uid} className="opt-wrap">
+            <CardFace
+              card={cardOf(uid)}
+              selected={picked.includes(uid)}
+              dim={!can && !!shown}
+              onClick={() => { if (can) toggle(uid, max); setFocus(cardOf(uid)); }}
+            />
+            {order >= 0 && <span className="order-badge">{order === 0 ? '最上' : order + 1}</span>}
+          </div>
         );
       })}
     </div>
@@ -572,7 +576,9 @@ function PromptSheet({ pending: p, view, seat, act, name, cardOf: cardLookup }: 
       break;
     case 'select': {
       body = cards(p.options, p.max, p.shown);
-      const label = p.shown
+      const label = p.button
+        ? p.button
+        : p.shown
         ? picked.length ? `把這 ${picked.length} 張加到手牌，其餘放到休息室` : p.options.length ? '都不拿，全部放到休息室' : '放到休息室'
         : picked.length ? `確定（${picked.length} 張）` : p.min === 0 ? '都不選' : `請選 ${p.min} 張`;
       buttons = <button className="btn primary" disabled={picked.length < p.min || picked.length > p.max} onClick={() => choose(picked)}>{label}</button>;
@@ -589,7 +595,7 @@ function PromptSheet({ pending: p, view, seat, act, name, cardOf: cardLookup }: 
       buttons = (
         <>
           <button className="btn primary" disabled={picked.length !== 1} onClick={() => choose(picked)}>
-            {p.kind === 'levelUp' ? '放到等級區' : p.kind === 'encoreChoose' ? '放進休息室' : '使用助太刀'}
+            {p.kind === 'levelUp' ? '放到等級區' : p.kind === 'encoreChoose' ? '放進休息室' : '使用'}
           </button>
           {p.kind === 'counter' && <button className="btn" onClick={() => act({ type: 'pass', player })}>不使用</button>}
         </>

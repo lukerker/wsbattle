@@ -187,19 +187,22 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     return null;
   }
 
-  // 助太刀能不能用（對手正打時的反擊步驟）〔10.5〕
+  // 反擊步驟可以用的卡：助太刀〔10.5〕、有反擊圖示的事件〔7.4.1.2.1〕
+  const counterEvent = (card: Card) => card.type === 'event' ? card.abilities.find((x) => x.kind === 'event' && x.timing === 'counter') : undefined;
   function backupOptions(s: GameState, p: PlayerId): string[] {
     if (s.attack?.mode !== 'front') return [];
     return s.players[p].hand.filter((u) => {
+      if (counterEvent(cardOf(s, u))) return !playProblem(s, p, u);
       const a = cardOf(s, u).abilities.find((x) => x.keyword?.id === 'backup');
       if (!a || a.keyword?.id !== 'backup') return false;
       return playerLevel(s, p) >= a.keyword.level && fx.costPayable(s, a.cost ?? [], u, p);
     });
   }
 
-  // 有效的【永】「此卡不能側打」
-  const cannotSideAttack = (s: GameState, uid: string) =>
-    fx.activeContinuous(s).some((a) => a.src === uid && a.ability.rules?.includes('cannotSideAttack'));
+  // 有效的【永】改變規則的能力（不能側打、起立階段不直立…）
+  const hasRule = (s: GameState, uid: string, rule: 'cannotSideAttack' | 'doesNotStand') =>
+    fx.activeContinuous(s).some((a) => a.src === uid && a.ability.rules?.includes(rule));
+  const cannotSideAttack = (s: GameState, uid: string) => hasRule(s, uid, 'cannotSideAttack');
 
   const attackable = (s: GameState): Slot[] => {
     if (s.turn === 1 && s.attacksThisTurn >= 1) return []; // 先攻第 1 回合只能攻擊 1 次〔7.2.1.3.1.2〕
@@ -225,7 +228,8 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         s.turn++;
         s.attacksThisTurn = 0;
         setPhase(ctx, 'stand'); // 〔6.2〕
-        for (const c of me.stage) if (c && c.state !== 'stand') setState(ctx, c, 'stand');
+        // 「起立階段不直立」的角色留在原狀態
+        for (const c of me.stage) if (c && c.state !== 'stand' && !hasRule(s, c.uid, 'doesNotStand')) setState(ctx, c, 'stand');
         then(s, { k: 'drawPhase' }, { k: 'clockPhase' }, { k: 'mainPhase' }, { k: 'climaxPhase' }, { k: 'attackPhase' }, { k: 'encoreStep' }, { k: 'endPhase' });
         return;
       case 'drawPhase':
@@ -569,6 +573,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         s.attacksThisTurn++;
         s.pending = null;
         fx.fireFor(s, attacker.uid, 'attacks', { battleOpp: s.attack.defender ?? undefined });
+        if (mode === 'front') fx.fireAllyFrontAttacked(s, defender!.uid); // 「你的其他角色被正打時」
         // 判定 →（正打才有）反擊 → 傷害 →（正打才有）戰鬥 → 下一次攻擊宣告
         const steps: Step[] = [{ k: 'trigger' }];
         if (mode === 'front') steps.push({ k: 'counter' });
@@ -587,6 +592,14 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         if (a.type !== 'choose' || a.uids.length !== 1 || !pend.options.includes(a.uids[0]!)) return '請選 1 張可以使用助太刀的卡，或不使用';
         s.pending = null;
         const uid = a.uids[0]!;
+        const ev = counterEvent(cardOf(s, uid));
+        if (ev) {
+          // 反擊事件：和主要階段一樣付費、放到解決領域再結算〔8.6.2.5.2〕
+          payStock(ctx, p, cardOf(s, uid).cost ?? 0);
+          move(ctx, uid, p, 'hand', 'resolution');
+          fx.startPlayed(ctx, uid, p, ev, [{ op: '_eventDone' }]);
+          return null;
+        }
         const backup = cardOf(s, uid).abilities.find((x) => x.keyword?.id === 'backup')!;
         fx.startPlayed(ctx, uid, p, backup, [{ op: '_fireUsedBackup' }]);
         return null;

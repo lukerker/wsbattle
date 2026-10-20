@@ -133,11 +133,19 @@ export function createEffects(core: Core) {
     return fctx.battleOpp;
   }
 
+  // 等級：名場面算 0
+  const levelOf = (s: GameState, uid: string) => (cardOf(s, uid).type === 'climax' ? 0 : (cardOf(s, uid).level ?? 0));
+
   // ── 選卡的候選 ──
   function filterOk(s: GameState, uid: string, f: CardFilter | undefined, src: string): boolean {
     if (!f) return true;
     const c = cardOf(s, uid);
     if (f.anyOf && !f.anyOf.some((x) => filterOk(s, uid, x, src))) return false;
+    if (f.nameIncludes && !f.nameIncludes.some((n) => c.name.ja.includes(n))) return false;
+    if (f.levelAtMostPlayerLevel) {
+      const owner = locate(s, src)?.p ?? s.cards[src]!.owner;
+      if ((c.level ?? 0) > s.players[owner].level.length) return false;
+    }
     if (f.levelAtLeast !== undefined && (c.type === 'climax' ? 0 : (c.level ?? 0)) < f.levelAtLeast) return false;
     if (f.hasTrigger && !c.triggers.includes(f.hasTrigger)) return false;
     if (f.type && c.type !== f.type) return false;
@@ -273,10 +281,24 @@ export function createEffects(core: Core) {
           }
           if (t.event === 'myTriggerChecked' && (s.turnPlayer !== p || !filterOk(s, card!, t.filter, c.uid))) continue;
           if (t.event === 'encoreStepStart' && t.side === 'self' && s.turnPlayer !== p) continue;
+          if (t.event === 'encoreStepStart' && t.side === 'opponent' && s.turnPlayer === p) continue;
           if (t.event === 'myClimaxPhaseStart' && s.turnPlayer !== p) continue;
           if (t.event === 'opponentAttackPhaseStart' && s.turnPlayer === p) continue;
           standby(s, c.uid, p, a, {});
         }
+      }
+    }
+  }
+
+  // 「你的其他角色被正打時」：防守方舞台上其他角色的能力
+  function fireAllyFrontAttacked(s: GameState, defender: string) {
+    const p = locate(s, defender)?.p;
+    if (p === undefined) return;
+    for (const c of s.players[p].stage) {
+      if (!c || c.uid === defender) continue;
+      for (const a of abilitiesOf(s, c.uid)) {
+        const t = a.trigger;
+        if (a.kind === 'auto' && t?.event === 'allyFrontAttacked' && filterOk(s, defender, t.filter, c.uid)) standby(s, c.uid, p, a, {});
       }
     }
   }
@@ -359,6 +381,7 @@ export function createEffects(core: Core) {
   // 依選擇器選卡〔8.6.3〕：指定張數時能選就要選滿；「まで」可選 0 張
   function pick(ctx: Ctx, f: Frame, sel: Selector, prompt: string, key = 'sel'): string[] | undefined {
     if (key in f.tmp) return f.tmp[key] as string[];
+    if (sel.fromBind) return (f.tmp[key] = (f.binds[sel.fromBind] ?? []).filter((u) => locate(ctx.s, u)?.zone === ZONE[sel.zone])) as string[];
     const cands = candidates(ctx.s, sel, f.src, f.controller, f.ctx);
     let out: string[] | undefined;
     if (sel.count === 'all') out = cands;
@@ -467,11 +490,21 @@ export function createEffects(core: Core) {
           const uid = picked[0];
           if (!uid) return 'done';
           const p = e.to.side ? (e.to.side === 'self' ? f.controller : other(f.controller)) : s.cards[uid]!.owner;
-          const empty = ([0, 1, 2, 3, 4] as Slot[]).filter((i) => !s.players[p].stage[i]);
-          if (!empty.length) return 'done';
-          const slot = empty.length === 1 ? empty[0] : (ask(ctx, f, 'slot', { kind: 'chooseSlot', player: f.controller, prompt: `${f.label}：選擇要放的格子`, slots: empty }) as Slot | undefined);
+          // slot any（舞台的好きな枠）：任何格子都可以，有角色的話原本的角色進休息室〔9.6.2〕
+          const slots = ([0, 1, 2, 3, 4] as Slot[]).filter((i) => e.to.slot === 'any' || !s.players[p].stage[i]);
+          if (!slots.length) return 'done';
+          const slot = slots.length === 1 ? slots[0] : (ask(ctx, f, 'slot', { kind: 'chooseSlot', player: f.controller, owner: p, prompt: `${f.label}：選擇要放的格子`, slots }) as Slot | undefined);
           if (slot === undefined) return 'wait';
+          const fromHand = locate(s, uid)?.zone === 'hand';
+          const old = s.players[p].stage[slot];
+          if (old) moveTo(ctx, old.uid, 'waiting');
           moveTo(ctx, uid, 'stage', { toPlayer: p, slot, state: e.to.state === 'rest' ? 'rest' : 'stand' });
+          if (e.bind) f.binds[e.bind] = [uid];
+          // 從手牌放到舞台：誘發「從手牌被放置到舞台時」〔效果放置也算〕
+          if (fromHand) {
+            s.placedThisTurn.push(uid);
+            fireFor(s, uid, 'placedFromHandToStage');
+          }
           return 'done';
         }
         for (const u of picked) {
@@ -694,7 +727,7 @@ export function createEffects(core: Core) {
         if (!looked.length) return 'done';
         const matches = looked.filter((u) => filterOk(s, u, e.filter, f.src));
         const picked = ask(ctx, f, 'sel', {
-          kind: 'select', player: f.controller, options: matches, min: 0, max: Math.min(2, matches.length), shown: looked,
+          kind: 'select', player: f.controller, options: matches, min: 0, max: Math.min(2, matches.length), shown: looked, button: '確定（其餘放到休息室）',
           prompt: matches.length
             ? `${f.label}：牌組上方 ${looked.length} 張，選最多 2 張給對手確認（1 張加到手牌、1 張放到能量區），其餘放到休息室`
             : `${f.label}：牌組上方 ${looked.length} 張裡沒有可以拿的卡，全部放到休息室`,
@@ -719,6 +752,97 @@ export function createEffects(core: Core) {
         core.refreshIfNeeded(ctx, f.controller);
         return 'done';
       }
+      case 'revealTopLevelRecover': {
+        // 公開牌組上方 1 張（翻到牌組旁邊），從休息室選 1 張等級 X 以下的角色回手牌，公開的卡放回原位
+        if (!('top' in f.tmp)) {
+          core.refreshIfNeeded(ctx, f.controller);
+          const top = me.deck[0];
+          if (!top) return 'done';
+          core.move(ctx, top, f.controller, 'deck', 'resolution');
+          ctx.ev.push({ t: 'reveal', uid: top, cardId: s.cards[top]!.cardId });
+          f.tmp.top = top;
+          const x = levelOf(s, top);
+          ctx.ev.push({ t: 'log', p: f.controller, text: `「${f.label}」公開牌組上方的「${cardOf(s, top).name.zh}」（等級 ${x}）` });
+        }
+        const top = f.tmp.top as string;
+        const x = levelOf(s, top);
+        const options = me.waiting.filter((u) => cardOf(s, u).type === 'character' && (cardOf(s, u).level ?? 0) <= x);
+        const name = cardOf(s, top).name.zh;
+        const picked = options.length
+          ? (ask(ctx, f, 'sel', {
+              kind: 'select', player: f.controller, options, min: 1, max: 1, shown: [top, ...options], button: '加到手牌',
+              prompt: `${f.label}：公開了「${name}」（等級 ${x}）。選休息室 1 張等級 ${x} 以下的角色加到手牌（公開的卡放回牌組上方）`,
+            }) as string[] | undefined)
+          : ask(ctx, f, 'ack', {
+              kind: 'acknowledge', player: f.controller, cards: [top], button: '放回牌組上方',
+              prompt: `${f.label}：公開了「${name}」（等級 ${x}），休息室沒有等級 ${x} 以下的角色`,
+            }) !== undefined ? [] : undefined;
+        if (!picked) return 'wait';
+        for (const u of picked) moveTo(ctx, u, 'hand');
+        if (me.resolution.includes(top)) core.move(ctx, top, f.controller, 'resolution', 'deck', { deckTop: true });
+        return 'done';
+      }
+      case 'lookTopReorder': {
+        // 看自己牌組上方最多 N 張，照點選的順序放回上方（先點的在最上面）
+        const looked = me.deck.slice(0, e.n);
+        if (looked.length <= 1) {
+          if (!looked.length) return 'done';
+          return ask(ctx, f, 'ack', { kind: 'acknowledge', player: f.controller, cards: looked, button: '放回牌組上方', prompt: `${f.label}：牌組最上面的卡` }) === undefined ? 'wait' : 'done';
+        }
+        const order = ask(ctx, f, 'sel', {
+          kind: 'select', player: f.controller, options: looked, min: looked.length, max: looked.length, shown: looked, ordered: true, button: '照這個順序放回牌組上方',
+          prompt: `${f.label}：牌組上方 ${looked.length} 張。依序點選，先點的放在最上面`,
+        }) as string[] | undefined;
+        if (!order) return 'wait';
+        me.deck.splice(0, looked.length, ...order);
+        ctx.ev.push({ t: 'log', p: f.controller, text: `「${f.label}」看了牌組上方 ${looked.length} 張，調整順序後放回` });
+        return 'done';
+      }
+      case 'lookOpponentTopArrange': {
+        // 看對手牌組上方最多 N 張：選要留下的卡，依點選順序放回上方（先點的在最上面），沒選的放到對手的休息室
+        const opp = other(f.controller);
+        const oppDeck = s.players[opp].deck;
+        const looked = (f.tmp.looked as string[] | undefined) ?? oppDeck.slice(0, e.n);
+        f.tmp.looked = looked;
+        if (!looked.length) return 'done';
+        const keep = ask(ctx, f, 'sel', {
+          kind: 'select', player: f.controller, options: looked, min: 0, max: looked.length, shown: looked, ordered: true, button: '確定（選的放回上方，其餘進休息室）',
+          prompt: `${f.label}：對手牌組上方 ${looked.length} 張。點選要放回牌組上方的卡（先點的放在最上面），沒選的放到對手的休息室`,
+        }) as string[] | undefined;
+        if (!keep) return 'wait';
+        for (const u of looked) if (!keep.includes(u)) core.move(ctx, u, opp, 'deck', 'waiting');
+        const rest = oppDeck.filter((u) => !keep.includes(u));
+        oppDeck.splice(0, oppDeck.length, ...keep, ...rest);
+        ctx.ev.push({ t: 'log', p: f.controller, text: `「${f.label}」看了對手牌組上方 ${looked.length} 張：${keep.length} 張放回上方，${looked.length - keep.length} 張放到休息室` });
+        core.refreshIfNeeded(ctx, opp);
+        return 'done';
+      }
+      case 'restAndMoveToBack': {
+        const picked = pick(ctx, f, e.target, '選擇要橫置並移到後列的角色');
+        if (!picked) return 'wait';
+        const uid = picked[0];
+        const loc = uid ? locate(s, uid) : null;
+        if (!uid || loc?.zone !== 'stage') return 'done';
+        const stage = s.players[loc.p].stage;
+        const c = stage[loc.slot!]!;
+        if (c.state !== 'rest') {
+          c.state = 'rest';
+          ctx.ev.push({ t: 'cardState', uid, state: 'rest' });
+        }
+        const empty = ([3, 4] as Slot[]).filter((i) => !stage[i]);
+        if (!empty.length) return 'done';
+        const slot = empty.length === 1 ? empty[0] : (ask(ctx, f, 'slot', { kind: 'chooseSlot', player: f.controller, owner: loc.p, prompt: `${f.label}：選擇要移到的後列格子`, slots: empty }) as Slot | undefined);
+        if (slot === undefined) return 'wait';
+        stage[slot] = c;
+        stage[loc.slot!] = null;
+        ctx.ev.push({ t: 'move', uid, cardId: s.cards[uid]!.cardId, from: { p: loc.p, zone: 'stage', slot: loc.slot! }, to: { p: loc.p, zone: 'stage', slot } });
+        return 'done';
+      }
+      case 'sourceToDeckBottom': {
+        const loc = locate(s, f.src);
+        if (loc && (loc.zone === 'resolution' || loc.zone === 'stage')) moveTo(ctx, f.src, 'deck');
+        return 'done';
+      }
       case 'lookOpponentTopPlace': {
         // 看對手牌組上方 1 張（只有自己看得到），決定放回上方或放到下方
         const opp = other(f.controller);
@@ -726,7 +850,7 @@ export function createEffects(core: Core) {
         if (!top) return 'done';
         f.tmp.top = top;
         const sel = ask(ctx, f, 'sel', {
-          kind: 'select', player: f.controller, options: [top], min: 0, max: 1, shown: [top],
+          kind: 'select', player: f.controller, options: [top], min: 0, max: 1, shown: [top], button: '確定',
           prompt: `${f.label}：對手牌組最上面的卡。選這張＝放到牌組最下面；不選＝放回最上面`,
         }) as string[] | undefined;
         if (!sel) return 'wait';
@@ -753,7 +877,7 @@ export function createEffects(core: Core) {
     return null;
   }
 
-  return { locate, abilitiesOf, activeContinuous, condOk, candidates, power, soul, costPayable, fireFor, fireGlobal, viable, startAbility, startPlayed, runFrame, answer };
+  return { locate, abilitiesOf, activeContinuous, condOk, candidates, power, soul, costPayable, fireFor, fireGlobal, fireAllyFrontAttacked, viable, startAbility, startPlayed, runFrame, answer };
 }
 
 export type Effects = ReturnType<typeof createEffects>;

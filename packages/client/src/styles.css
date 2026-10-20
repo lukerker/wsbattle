@@ -728,3 +728,6 @@ button { font: inherit; color: inherit; }
 .turn-img { width: 150px; aspect-ratio: 5 / 7; border-radius: 10px; overflow: hidden; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line); }
 .turn-img img { width: 100%; height: 100%; object-fit: cover; }
 .turn-slot label.btn { cursor: pointer; }
+/* 依序選卡：卡上標出順序 */
+.opt-wrap { position: relative; }
+.order-badge { position: absolute; top: -6px; left: -6px; z-index: 2; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff; background: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.5); }

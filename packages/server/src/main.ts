@@ -5,14 +5,14 @@
 //   ALLOWED_ORIGINS      允許連線的網站網址，用逗號分隔；沒設就不限制（只適合開發）
 import { createServer } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { RoomManager, bdW125, btrW107, gcrSE48, type ClientMsg, type Conn, type ServerMsg } from '@ws/engine';
+import { RoomManager, bdW125, btrW107, gbfS134, gcrSE48, type ClientMsg, type Conn, type ServerMsg } from '@ws/engine';
 import { firebaseVerifier } from './auth.ts';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const PROJECT = process.env.FIREBASE_PROJECT_ID;
 const ORIGINS = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
-const db = new Map([...btrW107.cards, ...bdW125.cards, ...gcrSE48.cards].map((c) => [c.id, c]));
+const db = new Map([...btrW107.cards, ...bdW125.cards, ...gcrSE48.cards, ...gbfS134.cards].map((c) => [c.id, c]));
 const manager = new RoomManager(db, PROJECT ? { verifyToken: firebaseVerifier(PROJECT) } : {});
 
 const originOk = (origin: string | undefined) => ORIGINS.length === 0 || (!!origin && ORIGINS.includes(origin));

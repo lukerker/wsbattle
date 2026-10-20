@@ -38,6 +38,8 @@ export interface CardFilter {
   levelAtLeast?: number; // 等級 N 以上（名場面視為等級 0）
   hasTrigger?: TriggerIcon; // 有這個判定圖示
   anyOf?: CardFilter[]; // 符合其中一個即可（例：《音樂》的角色或事件）
+  nameIncludes?: string[]; // 卡名包含其中一個字串
+  levelAtMostPlayerLevel?: true; // 等級在你的等級以下
 }
 
 export type Count = { exactly: number } | { upTo: number } | 'all';
@@ -54,6 +56,7 @@ export interface Selector {
   fromTop?: number; // 只看牌組上方 N 張
   position?: 'top' | 'bottom'; // 要選的是上方或下方
   as?: string; // 把這次選到的卡命名，同一效果的後續步驟可引用（選一次、算一次）
+  fromBind?: string; // 直接用前面步驟命名的卡（as／bind），不再選
 }
 
 // 數值的結算時機：atResolution＝效果結算當下算定，之後不再變；live＝每次使用時現場算（【永】）
@@ -97,7 +100,7 @@ export type Effect =
   | {
       op: 'moveCards';
       from: Selector;
-      to: { zone: Zone; side?: Side; position?: 'top' | 'bottom'; state?: 'stand' | 'rest'; slot?: 'empty' };
+      to: { zone: Zone; side?: Side; position?: 'top' | 'bottom'; state?: 'stand' | 'rest'; slot?: 'empty' | 'any' }; // slot any＝舞台的好きな枠（有角色的格子，原本的角色進休息室）
       bind?: string; // 把移動的卡綁成名稱，供後續步驟使用
     }
   | { op: 'draw'; upTo: Amount } // 最多抽 N 張（每張都問）
@@ -126,7 +129,12 @@ export type Effect =
   | { op: 'extraTriggerCheck' } // 這次攻擊的判定步驟做 2 次判定
   | { op: 'moveToOtherEmptySlot'; target: Selector } // 選 1 張角色，移到它主人舞台上其他沒有角色的格子
   | { op: 'lookTopHandAndStock'; look: number; filter: CardFilter } // 看牌組上方 N 張，選符合條件的最多 2 張給對手確認，1 張加到手牌、1 張放到能量區，其餘放休息室
-  | { op: 'lookOpponentTopPlace' }; // 看對手牌組上方 1 張，放回上方或下方
+  | { op: 'lookOpponentTopPlace' } // 看對手牌組上方 1 張，放回上方或下方
+  | { op: 'revealTopLevelRecover' } // 公開牌組上方 1 張（之後放回），從休息室選 1 張等級 X 以下的角色回手牌（X＝公開的卡的等級，名場面算 0）
+  | { op: 'lookTopReorder'; n: number } // 看自己牌組上方最多 N 張，照喜歡的順序放回上方
+  | { op: 'lookOpponentTopArrange'; n: number } // 看對手牌組上方最多 N 張，選最多 N 張照喜歡的順序放回上方，其餘放到休息室
+  | { op: 'restAndMoveToBack'; target: Selector } // 選 1 張角色，橫置並移到後列沒有角色的格子
+  | { op: 'sourceToDeckBottom' }; // 把此卡（事件在解決領域、或在舞台上）放到牌組最下面
 
 export type TriggerEvent =
   | { event: 'placedFromHandToStage' } // 此卡從手牌放置到舞台時
@@ -141,7 +149,8 @@ export type TriggerEvent =
   | { event: 'encoreStepStart'; side: Side }
   | { event: 'myClimaxPhaseStart' }
   | { event: 'opponentAttackPhaseStart' }
-  | { event: 'myTriggerChecked'; filter?: CardFilter }; // 你的判定翻出符合條件的卡時
+  | { event: 'myTriggerChecked'; filter?: CardFilter } // 你的判定翻出符合條件的卡時
+  | { event: 'allyFrontAttacked'; filter?: CardFilter }; // 你的其他角色（符合條件）被正打時
 
 export type Keyword =
   | { id: 'assist' } // 應援（【永】，效果本身用 modifyPower 描述）
@@ -159,7 +168,7 @@ export interface Ability {
   condition?: Condition;
   cost?: Cost[];
   optional?: boolean; // 「可以」類：先檢查付不付得起，再問玩家
-  rules?: ('ignoreColorRequirement' | 'cannotSideAttack')[]; // 改變規則的能力：不需滿足顏色條件、不能側打
+  rules?: ('ignoreColorRequirement' | 'cannotSideAttack' | 'doesNotStand')[]; // 改變規則的能力：不需滿足顏色條件、不能側打、起立階段不直立
   effects: Effect[];
   text: Text;
   review?: string[]; // 需要使用者核對的疑點

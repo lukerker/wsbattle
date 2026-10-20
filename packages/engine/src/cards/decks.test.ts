@@ -4,11 +4,13 @@ import type { Card } from '../card-schema.ts';
 import * as btr from './btr-w107.ts';
 import * as bd from './bd-w125.ts';
 import * as gcr from './gcr-se48.ts';
+import * as gbf from './gbf-s134.ts';
 
 const decks: Record<string, { cards: Card[]; deck: { cardId: string; count: number }[]; csv: string }> = {
   'BTR/W107 孤獨搖滾': { ...btr, csv: 'BTR-W107' },
   'BD/W125 Ave Mujica': { ...bd, csv: 'BD-W125' },
   'GCR/SE48 Girls Band Cry': { ...gcr, csv: 'GCR-SE48' },
+  'GBF/S134 碧藍幻想': { ...gbf, csv: 'GBF-S134' },
 };
 
 for (const [label, { cards, deck, csv }] of Object.entries(decks)) {
