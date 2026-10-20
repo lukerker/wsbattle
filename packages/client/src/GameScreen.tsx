@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEven
 import type { Action, AttackMode, Card, ClientState, GameEvent, GameView, Pending, PlayerId, RoomInfo, Slot } from '@ws/engine';
 import { applyStep, groupEvents, originsOf, playAttack, useFlip } from './anim.ts';
 import { Board, type ZoneMode } from './Board.tsx';
-import { Abilities, BACK_URL, CardFace, CardImg, CardInfo, cardMeta } from './CardFace.tsx';
+import { Abilities, BACK_URL, CardFace, CardImg, CardInfo, PowerTag, cardMeta } from './CardFace.tsx';
 import { PHASES, SLOT_NAME, cardById, seriesInfo } from './meta.ts';
 import { buildLog, type LogEntry } from './log.ts';
 import { DEFAULT_TURN_CARDS, loadTurnCards, type TurnCards } from './turnCards.ts';
@@ -39,8 +39,19 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const origins = useRef(new Map<string, { key: string; flip: boolean }>());
   const csRef = useRef<ClientState | null>(null);
-  const queue = useRef<{ state: ClientState; events: GameEvent[] }[]>([]);
+  const queue = useRef<{ state: ClientState; events: GameEvent[]; at: number }[]>([]);
   const running = useRef(false);
+  // 限時選擇（反擊、給對手確認）的截止時間：用收到訊息的時間＋剩餘毫秒，不受雙方電腦時間差影響
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (deadline === null) return;
+    const t = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(t);
+  }, [deadline]);
+  const secondsLeft = deadline === null ? null : Math.max(0, Math.ceil((deadline - now) / 1000));
+  // 這個回合剛加到手牌的卡：選手牌時標「剛拿到」，同名卡才分得出來
+  const [fresh, setFresh] = useState<Set<string>>(() => new Set());
 
   const say = (msg: string) => {
     setToast(msg);
@@ -53,11 +64,25 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
       if (running.current) return;
       running.current = true;
       while (queue.current.length) {
-        const { state, events } = queue.current.shift()!;
+        const { state, events, at } = queue.current.shift()!;
         const prev = csRef.current;
         csRef.current = state;
         setCs(state);
         setBusy(false);
+        setDeadline(state.timerMs === null || state.timerMs === undefined ? null : at + state.timerMs);
+        setNow(Date.now());
+        if (state.viewer !== 'spectator') {
+          const seatNow = state.viewer;
+          setFresh((cur) => {
+            let next = cur;
+            for (const e of events) {
+              if (e.t === 'phase' && e.phase === 'stand') next = new Set();
+              if (e.t === 'move' && e.to.zone === 'hand' && e.to.p === seatNow) next = new Set([...next, e.uid]);
+            }
+            const hand = new Set(state.view.players[seatNow].hand);
+            return new Set([...next].filter((u) => hand.has(u)));
+          });
+        }
         const notes = events.filter((e) => e.t === 'notice').map((e) => (e as { text: string }).text);
         if (notes.length) say(notes.join('　'));
         if (prev && events.length) {
@@ -79,14 +104,14 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
       running.current = false;
     };
     return net.onState((state, events) => {
-      queue.current.push({ state, events });
+      queue.current.push({ state, events, at: Date.now() });
       void drain();
     });
   }, []);
 
   // 先後攻翻牌用開房玩家上傳的卡面（沒有就用系統預設）
   const [turnCards, setTurnCards] = useState<TurnCards>(DEFAULT_TURN_CARDS);
-  const hostUid = room.seats[0]?.uid;
+  const hostUid = room.seats.find((s) => s?.host)?.uid ?? room.seats[0]?.uid;
   useEffect(() => {
     void loadTurnCards(hostUid).then(setTurnCards);
   }, [hostUid]);
@@ -341,7 +366,7 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
             />
             {view.turn > 0 && (
               <div className={`turn-pill ${myTurn ? 'me' : 'opp'}${responder !== null ? ' waiting' : ''}`} style={{ ['--pc' as string]: accentOf(turnPlayer) }}>
-                {responder !== null ? `⏳ 等待 ${nm(responder)} 回應` : `${myTurn ? '▼' : '▲'} ${nm(turnPlayer)}的回合`}
+                {responder !== null ? `⏳ 等待 ${nm(responder)} 回應${secondsLeft !== null ? `（${secondsLeft} 秒）` : ''}` : `${myTurn ? '▼' : '▲'} ${nm(turnPlayer)}的回合`}
               </div>
             )}
             {/* 場地右側：上面對手的名牌；下面自己的名牌，名牌上方是階段按鈕（兩者保持固定間距，名牌長高也不會蓋到按鈕） */}
@@ -417,7 +442,7 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
       {zoneView && <ZoneDialog view={zoneView} cardOf={cardOfUid} onClose={() => setZoneView(null)} />}
 
       {!anim && mine && isPrompt(mine) && (
-        <PromptSheet key={JSON.stringify(mine)} pending={mine} view={cs.view} seat={seat} act={act} name={nm(seat)} cardOf={(uid) => {
+        <PromptSheet key={JSON.stringify(mine)} pending={mine} view={cs.view} seat={seat} act={act} name={nm(seat)} secondsLeft={secondsLeft} fresh={fresh} power={cs.power} soul={cs.soul} cardOf={(uid) => {
           const id = cs.view.cards[uid]?.cardId;
           return id ? cardById.get(id)! : null;
         }} />
@@ -506,6 +531,15 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
   }
 }
 
+// 這張卡在誰的舞台、第幾格（不在舞台上回傳 null）
+function stageSlotOf(view: GameView, uid: string): { p: PlayerId; slot: number } | null {
+  for (const p of [0, 1] as PlayerId[]) {
+    const slot = view.players[p].stage.findIndex((c) => c?.uid === uid);
+    if (slot >= 0) return { p, slot };
+  }
+  return null;
+}
+
 const isPrompt = (p: Pending) => !['main', 'climax', 'attackDeclare', 'clock', 'decideFirst'].includes(p.kind);
 
 function pendingHint(p: Pending): string {
@@ -531,7 +565,10 @@ function pendingHint(p: Pending): string {
 }
 
 // 底部彈出視窗：回應引擎的待決選擇。可以收起來看場地，看完再展開
-function PromptSheet({ pending: p, view, seat, act, name, cardOf: cardLookup }: { pending: Pending; view: GameView; seat: PlayerId; act: (a: Action) => void; name: string; cardOf: (uid: string) => Card | null }) {
+function PromptSheet({ pending: p, view, seat, act, name, secondsLeft, fresh, power, soul, cardOf: cardLookup }: {
+  pending: Pending; view: GameView; seat: PlayerId; act: (a: Action) => void; name: string; secondsLeft: number | null; fresh: Set<string>;
+  power: Record<string, number>; soul: Record<string, number>; cardOf: (uid: string) => Card | null;
+}) {
   const [picked, setPicked] = useState<string[]>([]);
   const [focus, setFocus] = useState<Card | null>(null); // 最後點的卡：在視窗右側顯示說明
   const [collapsed, setCollapsed] = useState(false);
@@ -542,25 +579,64 @@ function PromptSheet({ pending: p, view, seat, act, name, cardOf: cardLookup }: 
 
   // shown：一起顯示但不能選的卡（看牌時翻開的其他牌）
   const ordered = p.kind === 'select' && !!p.ordered;
-  const cards = (options: string[], max: number, shown?: string[]) => (
-    <div className="opts">
-      {(shown ?? options).map((uid) => {
-        const can = options.includes(uid) && max > 0;
-        const order = ordered ? picked.indexOf(uid) : -1;
-        return (
-          <div key={uid} className="opt-wrap">
-            <CardFace
-              card={cardOf(uid)}
-              selected={picked.includes(uid)}
-              dim={!can && !!shown}
-              onClick={() => { if (can) toggle(uid, max); setFocus(cardOf(uid)); }}
-            />
-            {order >= 0 && <span className="order-badge">{order === 0 ? '最上' : order + 1}</span>}
-          </div>
-        );
-      })}
-    </div>
-  );
+  const myHand = view.players[player].hand;
+  const cards = (options: string[], max: number, shown?: string[]) => {
+    // 選的全是舞台上的角色：照舞台的擺位顯示，同名的角色才分得出是哪一隻
+    if (!shown && options.length && options.every((u) => stageSlotOf(view, u))) return stagePicker(options, max);
+    // 選手牌：照手牌的順序，剛拿到的卡標出來
+    const list = !shown && options.every((u) => myHand.includes(u)) ? myHand.filter((u) => options.includes(u)) : (shown ?? options);
+    return (
+      <div className="opts">
+        {list.map((uid) => {
+          const can = options.includes(uid) && max > 0;
+          const order = ordered ? picked.indexOf(uid) : -1;
+          return (
+            <div key={uid} className="opt-wrap">
+              <CardFace
+                card={cardOf(uid)}
+                selected={picked.includes(uid)}
+                dim={!can && !!shown}
+                onClick={() => { if (can) toggle(uid, max); setFocus(cardOf(uid)); }}
+              />
+              {order >= 0 && <span className="order-badge">{order === 0 ? '最上' : order + 1}</span>}
+              {fresh.has(uid) && myHand.includes(uid) && <span className="fresh-badge">剛拿到</span>}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+  // 舞台擺位：對手在上（和場上一樣左右相反、後列在上），自己在下（前列在上、後列在下）
+  const stagePicker = (options: string[], max: number) => {
+    const owners = ([1 - seat, seat] as PlayerId[]).filter((o) => options.some((u) => stageSlotOf(view, u)?.p === o));
+    const slotBox = (o: PlayerId, i: number) => {
+      const c = view.players[o].stage[i];
+      if (!c) return <div key={i} className="sp-slot empty" />;
+      const can = options.includes(c.uid) && max > 0;
+      const card = cardOf(c.uid);
+      return (
+        <div key={i} className={`sp-slot${can ? ' can' : ' off'}${picked.includes(c.uid) ? ' on' : ''}`} onClick={() => { if (can) toggle(c.uid, max); setFocus(card); }}>
+          <div className="sp-img"><CardImg card={card} /></div>
+          <PowerTag card={card} power={power[c.uid]} soul={soul[c.uid]} />
+        </div>
+      );
+    };
+    return (
+      <div className="stage-pick">
+        {owners.map((o) => {
+          const front = o === seat ? [0, 1, 2] : [2, 1, 0];
+          const back = o === seat ? [3, 4] : [4, 3];
+          const rows = o === seat ? [front, back] : [back, front];
+          return (
+            <div key={o} className="sp-side">
+              <span className="sp-who">{o === seat ? '你的舞台' : '對手的舞台'}</span>
+              {rows.map((r, k) => <div key={k} className={`sp-row${r.length === 2 ? ' back' : ''}`}>{r.map((i) => slotBox(o, i))}</div>)}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
   const choose = (uids: string[], dest?: 'hand' | 'stock') => act({ type: 'choose', player, uids, ...(dest ? { dest } : {}) });
   let body: React.ReactNode = null;
   let buttons: React.ReactNode = null;
@@ -586,7 +662,12 @@ function PromptSheet({ pending: p, view, seat, act, name, cardOf: cardLookup }: 
     }
     case 'acknowledge':
       body = cards([], 0, p.cards);
-      buttons = <button className="btn primary" onClick={() => act({ type: 'yesno', player, yes: true })}>{p.button ?? '確認'}</button>;
+      buttons = (
+        <>
+          <button className="btn primary" onClick={() => act({ type: 'yesno', player, yes: true })}>{p.button ?? '確認'}{p.timeout && secondsLeft !== null ? `（${secondsLeft}）` : ''}</button>
+          {p.timeout && secondsLeft !== null && <span className="countdown">{secondsLeft} 秒後自動確認</span>}
+        </>
+      );
       break;
     case 'levelUp':
     case 'encoreChoose':
@@ -597,7 +678,8 @@ function PromptSheet({ pending: p, view, seat, act, name, cardOf: cardLookup }: 
           <button className="btn primary" disabled={picked.length !== 1} onClick={() => choose(picked)}>
             {p.kind === 'levelUp' ? '放到等級區' : p.kind === 'encoreChoose' ? '放進休息室' : '使用'}
           </button>
-          {p.kind === 'counter' && <button className="btn" onClick={() => act({ type: 'pass', player })}>不使用</button>}
+          {p.kind === 'counter' && <button className="btn" onClick={() => act({ type: 'pass', player })}>不使用{secondsLeft !== null ? `（${secondsLeft}）` : ''}</button>}
+          {p.kind === 'counter' && secondsLeft !== null && <span className="countdown">{secondsLeft} 秒後自動不使用</span>}
         </>
       );
       break;

@@ -1,5 +1,5 @@
 // 房間與大廳：建立、加入、觀戰、斷線重連、資訊過濾。用假連線測，不需要網路。
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Card } from '../card-schema.ts';
 import * as bd from '../cards/bd-w125.ts';
 import * as btr from '../cards/btr-w107.ts';
@@ -7,6 +7,7 @@ import type { Action, PlayerId } from '../game/types.ts';
 import { RoomManager, type Conn } from './manager.ts';
 import type { ClientMsg, ClientState, RoomInfo, ServerMsg } from './protocol.ts';
 import { validateDeck } from './room.ts';
+import { oppTurn, passUntil, put, scene } from '../game/test-utils.ts';
 
 const db = new Map<string, Card>([...btr.cards, ...bd.cards].map((c) => [c.id, c]));
 const list = (d: { cardId: string; count: number }[]) => d.flatMap((x) => Array<string>(x.count).fill(x.cardId));
@@ -37,14 +38,21 @@ async function login(m: RoomManager, name: string, devId = idFor(name)) {
 }
 const send = (m: RoomManager, c: Conn, msg: ClientMsg) => m.message(c, msg);
 
-// 兩個玩家進房、開局
-async function startGame(m = new RoomManager(db)) {
+// 兩個玩家進房（還沒開始）
+async function seatBoth(m = new RoomManager(db)) {
   const a = await login(m, '路可');
   const b = await login(m, '小祥');
   await send(m, a, { t: 'create', deck: BTR_DECK, deckName: '孤獨搖滾預組', allowSpectators: true, maxSpectators: 2 });
   const code = a.room!.code;
   await send(m, b, { t: 'join', code, role: 'player', deck: BD_DECK, deckName: 'Ave Mujica 預組' });
   return { m, a, b, code };
+}
+// 兩個玩家進房、加入者準備、房主按開始
+async function startGame(m = new RoomManager(db)) {
+  const r = await seatBoth(m);
+  await send(m, r.b, { t: 'ready', ready: true });
+  await send(m, r.a, { t: 'start' });
+  return r;
 }
 
 describe('牌組驗證', () => {
@@ -107,7 +115,41 @@ describe('建立與加入房間', () => {
     expect(a.state).toBeUndefined();
   });
 
-  it('加入：座位坐滿就開局，雙方各收到自己的視角', async () => {
+  it('加入後不會馬上開局：加入者按準備、房主按開始才開始', async () => {
+    const { m, a, b } = await seatBoth();
+    expect(a.room).toMatchObject({ status: 'waiting' });
+    expect(a.room!.seats[0]).toMatchObject({ host: true, ready: false });
+    expect(a.room!.seats[1]).toMatchObject({ host: false, ready: false });
+    expect(a.state).toBeUndefined();
+    await send(m, b, { t: 'start' });
+    expect(b.error).toMatch('只有房主');
+    await send(m, a, { t: 'start' });
+    expect(a.error).toMatch('還沒準備');
+    await send(m, a, { t: 'ready', ready: true });
+    expect(a.error).toMatch('房主不用準備');
+    await send(m, b, { t: 'ready', ready: true });
+    expect(a.room!.seats[1]).toMatchObject({ ready: true });
+    // 加入者換牌組：要重新準備
+    await send(m, b, { t: 'changeDeck', deck: BTR_DECK, deckName: '換成孤獨搖滾' });
+    expect(a.room!.seats[1]).toMatchObject({ ready: false, series: 'BTR', deckName: '換成孤獨搖滾' });
+    await send(m, b, { t: 'changeDeck', deck: BTR_DECK.slice(1), deckName: 'x' });
+    expect(b.error).toMatch('50 張');
+    await send(m, b, { t: 'ready', ready: true });
+    await send(m, a, { t: 'start' });
+    expect(a.room).toMatchObject({ status: 'playing' });
+    expect(a.state!.viewer).toBe(0);
+    await send(m, b, { t: 'changeDeck', deck: BD_DECK, deckName: 'x' });
+    expect(b.error).toMatch('已經開始');
+  });
+
+  it('房主在開局前離開：留下的玩家變成房主', async () => {
+    const { m, a, b } = await seatBoth();
+    await send(m, b, { t: 'ready', ready: true });
+    await send(m, a, { t: 'leave' });
+    expect(b.room!.seats.find((x) => x)).toMatchObject({ name: '小祥', host: true, ready: false });
+  });
+
+  it('開局後雙方各收到自己的視角', async () => {
     const { a, b } = await startGame();
     expect(a.room).toMatchObject({ status: 'playing', you: 0 });
     expect(b.room).toMatchObject({ status: 'playing', you: 1 });
@@ -161,6 +203,17 @@ describe('觀戰', () => {
     expect(w.error).toMatch('不開放觀戰');
   });
 
+  it('可以中途加入觀戰：進來就收到目前的盤面', async () => {
+    const { m, a, b, code } = await startGame();
+    await send(m, a, { t: 'action', action: { type: 'mulligan', player: 0, discard: [] } });
+    await send(m, b, { t: 'action', action: { type: 'mulligan', player: 1, discard: [] } });
+    const s = await login(m, '晚到的觀眾');
+    await send(m, s, { t: 'join', code, role: 'spectator' });
+    expect(s.room).toMatchObject({ you: 'spectator', status: 'playing' });
+    expect(s.state!.viewer).toBe('spectator');
+    expect(s.state!.waiting).toMatchObject({ kind: 'decideFirst' });
+  });
+
   it('觀戰者看不到任何手牌，也不能操作', async () => {
     const { m, code } = await startGame();
     const s = await login(m, '觀眾');
@@ -207,6 +260,53 @@ describe('操作與資訊過濾', () => {
       expect(JSON.stringify(c.log)).not.toContain('"rng"');
       expect(JSON.stringify(c.log)).not.toContain('"queue"');
     }
+  });
+});
+
+describe('限時的選擇', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('反擊步驟（助太刀）10 秒沒選就自動不使用；雙方都看得到剩餘時間', async () => {
+    vi.useFakeTimers();
+    const { m, a, b, code } = await startGame();
+    const room = m.rooms.get(code)!;
+    // 換成指定的局面：對手（玩家 1）正打，我（玩家 0）手上有助太刀
+    let s = oppTurn(scene());
+    put(s, 1, 'BD/W125-T06', { slot: 0 });
+    put(s, 0, 'BTR/W107-T16', { slot: 2 });
+    put(s, 0, 'BTR/W107-T01', 'level');
+    put(s, 0, 'BTR/W107-T16', 'stock');
+    put(s, 0, 'BTR/W107-T06', 'hand');
+    s = passUntil(s, 'attackDeclare');
+    room.game = s;
+    await send(m, b, { t: 'action', action: { type: 'attack', player: 1, slot: 0, mode: 'front' } });
+    expect(a.state!.mine).toMatchObject({ kind: 'counter', timeout: 10 });
+    expect(a.state!.timerMs).toBe(10000);
+    expect(b.state!.timerMs).toBe(10000);
+    vi.advanceTimersByTime(9000);
+    expect(room.game!.pending?.kind).toBe('counter');
+    vi.advanceTimersByTime(1000);
+    expect(room.game!.pending?.kind).not.toBe('counter');
+    expect(a.state!.timerMs).toBeNull();
+  });
+
+  it('自己按了就取消計時，不會再代為執行', async () => {
+    vi.useFakeTimers();
+    const { m, a, b, code } = await startGame();
+    const room = m.rooms.get(code)!;
+    let s = oppTurn(scene());
+    put(s, 1, 'BD/W125-T06', { slot: 0 });
+    put(s, 0, 'BTR/W107-T16', { slot: 2 });
+    put(s, 0, 'BTR/W107-T01', 'level');
+    put(s, 0, 'BTR/W107-T16', 'stock');
+    const backup = put(s, 0, 'BTR/W107-T06', 'hand');
+    s = passUntil(s, 'attackDeclare');
+    room.game = s;
+    await send(m, b, { t: 'action', action: { type: 'attack', player: 1, slot: 0, mode: 'front' } });
+    await send(m, a, { t: 'action', action: { type: 'choose', player: 0, uids: [backup] } });
+    const n = room.record!.actions.length;
+    vi.advanceTimersByTime(20000);
+    expect(room.record!.actions.length).toBe(n);
   });
 });
 

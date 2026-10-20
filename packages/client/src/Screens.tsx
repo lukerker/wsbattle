@@ -460,6 +460,10 @@ function JoinDialog({ onClose }: { onClose: () => void }) {
 // ───── 等待房間（還沒開局）─────
 export function RoomScreen({ room }: { room: RoomInfo }) {
   const [copied, setCopied] = useState(false);
+  const [deckDlg, setDeckDlg] = useState(false);
+  const me = room.you === 0 || room.you === 1 ? room.seats[room.you] : null;
+  const guest = room.seats.find((s) => s && !s.host) ?? null;
+  const bothSeated = !!room.seats[0] && !!room.seats[1];
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(room.code);
@@ -482,7 +486,8 @@ export function RoomScreen({ room }: { room: RoomInfo }) {
                 {s ? (
                   <>
                     <div className="avatar">{s.name.slice(0, 1)}</div>
-                    <div><b>{s.name}{room.you === p ? '（你）' : ''}</b><span>{seriesInfo(s.series).label}・{s.deckName}</span></div>
+                    <div><b>{s.name}{room.you === p ? '（你）' : ''}{s.host && <small className="host-tag">房主</small>}</b><span>{seriesInfo(s.series).label}・{s.deckName}</span></div>
+                    {!s.host && <em className={s.ready ? 'on' : ''}>{s.ready ? '✓ 已準備' : '未準備'}</em>}
                     <em className={s.online ? 'on' : ''}>{s.online ? '在線' : '離線'}</em>
                   </>
                 ) : <span className="wait-dots">等待對手加入<i>.</i><i>.</i><i>.</i></span>}
@@ -491,7 +496,44 @@ export function RoomScreen({ room }: { room: RoomInfo }) {
           })}
         </div>
         {room.config.allowSpectators && <p className="muted">觀戰：{room.spectators.length} / {room.config.maxSpectators} 人{room.spectators.length ? `（${room.spectators.map((s) => s.name).join('、')}）` : ''}</p>}
+        {me && (
+          <div className="room-actions">
+            {me.host ? (
+              <button className="btn primary big" disabled={!bothSeated || !guest?.ready} onClick={() => net.send({ t: 'start' })}>遊戲開始</button>
+            ) : (
+              <button className={`btn big${me.ready ? '' : ' primary'}`} onClick={() => net.send({ t: 'ready', ready: !me.ready })}>{me.ready ? '取消準備' : '準備'}</button>
+            )}
+            <button className="btn" onClick={() => setDeckDlg(true)}>更改牌組</button>
+          </div>
+        )}
+        {me?.host && <p className="muted small">{!bothSeated ? '等對手加入後，對手按「準備」，你就可以按「遊戲開始」。觀戰的人也可以先進來。' : guest?.ready ? '對手已準備好，可以開始了。' : '等對手按「準備」。'}</p>}
+        {me && !me.host && <p className="muted small">{me.ready ? '已準備，等房主按「遊戲開始」。' : '確認牌組後按「準備」。'}</p>}
         <button className="btn ghost" onClick={() => net.send({ t: 'leave' })}>離開房間</button>
+      </div>
+      {deckDlg && me && <ChangeDeckDialog current={me.deckName} onClose={() => setDeckDlg(false)} />}
+    </div>
+  );
+}
+
+// 開局前更換牌組（加入者換了要重新按準備）
+function ChangeDeckDialog({ current, onClose }: { current: string; onClose: () => void }) {
+  const { own, presets, def, setDefault } = useDecks();
+  const [pick, setPick] = useState(() => [...own, ...presets].find((d) => d.name === current && !d.notReady)?.id ?? def.id);
+  const deck = [...own, ...presets].find((d) => d.id === pick && !d.notReady);
+  return (
+    <div className="modal" onClick={onClose}>
+      <div className="dialog small" onClick={(e) => e.stopPropagation()}>
+        <h3>更改牌組</h3>
+        <DeckPicker value={pick} onChange={setPick} />
+        <div className="actions">
+          <button className="btn primary" disabled={!deck} onClick={() => {
+            if (!deck) return;
+            setDefault(deck.id);
+            net.send({ t: 'changeDeck', deck: deck.cards, deckName: deck.name });
+            onClose();
+          }}>使用這副牌組</button>
+          <button className="btn" onClick={onClose}>取消</button>
+        </div>
       </div>
     </div>
   );

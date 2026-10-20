@@ -42,8 +42,15 @@ export function buildLog(events: GameEvent[], view: GameView): LogEntry[] {
         else if (from.zone === 'waiting' && to.zone === 'stock') add(to.p, `把休息室的「${name}」放到能量區`);
         else if (from.zone === 'waiting' && to.zone === 'stage') add(to.p, `從休息室放「${name}」到${to.slot !== undefined ? SLOT_NAME[to.slot] : '舞台'}`);
         else if (from.zone === 'stage' && to.zone === 'clock' && to.p !== null) add(to.p, `「${name}」被放進傷害區`);
+        else if (from.zone === 'stage' && to.zone === 'waiting') add(from.p, `「${name}」從舞台放到休息室`);
+        else if (from.zone === 'stage' && to.zone === 'hand') add(from.p, `「${name}」從舞台回到手牌`);
+        else if (from.zone === 'stage' && to.zone === 'memory') add(from.p, `「${name}」放到回憶區`);
+        else if (from.zone === 'resolution' && to.zone === 'memory') add(from.p, `「${name}」放到回憶區`);
         break;
       }
+      case 'cardState':
+        if (e.state === 'reverse') add(ownerOf(e.uid), `「${nameByUid(e.uid)}」被倒置（戰鬥中被打倒）`);
+        break;
       case 'attack':
         add(ownerOf(e.uid), `「${nameByUid(e.uid)}」${MODE[e.mode]}`);
         break;

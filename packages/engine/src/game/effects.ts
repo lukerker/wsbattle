@@ -1,7 +1,7 @@
 // 效果系統：把卡片資料（時機＋條件＋費用＋動作）實際執行出來。
 // 〔 〕為總合規則編號。持續效果不儲存，每次現場計算〔8.9〕；需要玩家選擇時暫停，等回應後從同一步繼續。
 import type { Ability, Amount, Card, CardFilter, Condition, Cost, Effect, Selector, Zone as SchemaZone } from '../card-schema.ts';
-import type { Frame, FrameCtx, GameEvent, GameState, GameZone, InternalOp, Pending, PlayerId, Slot, StandbyAbility, Step } from './types.ts';
+import { RESPONSE_SECONDS, type Frame, type FrameCtx, type GameEvent, type GameState, type GameZone, type InternalOp, type Pending, type PlayerId, type Slot, type StandbyAbility, type Step } from './types.ts';
 
 export interface Ctx {
   s: GameState;
@@ -426,7 +426,7 @@ export function createEffects(core: Core) {
   const confirm = (ctx: Ctx, f: Frame, prompt: string, key = 'ok') => ask(ctx, f, key, { kind: 'confirm', player: f.controller, prompt }) as boolean | undefined;
   // 「給對手確認」「公開」：讓對手看過並按確認；回傳 true＝已確認可以繼續
   const showOpponent = (ctx: Ctx, f: Frame, cards: string[], what: string) =>
-    ask(ctx, f, 'ack', { kind: 'acknowledge', player: other(f.controller), prompt: `對手的「${f.label}」：${what}的卡`, cards }) !== undefined;
+    ask(ctx, f, 'ack', { kind: 'acknowledge', player: other(f.controller), prompt: `對手的「${f.label}」：${what}的卡`, cards, timeout: RESPONSE_SECONDS }) !== undefined;
 
   function moveTo(ctx: Ctx, uid: string, to: GameZone, opts: MoveOpts = {}) {
     const loc = locate(ctx.s, uid);

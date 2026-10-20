@@ -4,7 +4,7 @@
 import type { Card } from '../card-schema.ts';
 import { DEFAULT_ENCORE, createEffects, type Core, type Ctx, type MoveOpts } from './effects.ts';
 import { nextRandom, shuffleInPlace } from './rng.ts';
-import { FRONT, type Action, type ApplyResult, type AttackMode, type GameState, type GameZone, type Pending, type PlayerId, type PlayerState, type Slot, type Step } from './types.ts';
+import { FRONT, RESPONSE_SECONDS, type Action, type ApplyResult, type AttackMode, type GameState, type GameZone, type Pending, type PlayerId, type PlayerState, type Slot, type Step } from './types.ts';
 
 const HAND_LIMIT = 7; // 〔3.3.3.1〕
 const MAX_STEPS = 10000; // 結算次數上限，防止無窮迴圈
@@ -293,7 +293,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       case 'counter': {
         // 反擊步驟〔7.4〕：防守方可以使用一次助太刀
         const options = backupOptions(s, other(tp));
-        if (options.length) s.pending = { kind: 'counter', player: other(tp), options };
+        if (options.length) s.pending = { kind: 'counter', player: other(tp), options, timeout: RESPONSE_SECONDS };
         return;
       }
       case 'attackDamage': {

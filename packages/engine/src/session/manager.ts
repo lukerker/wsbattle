@@ -112,21 +112,38 @@ export class RoomManager {
           s.code = null;
           if (room) {
             const { events } = room.leave(user.id);
-            if (room.isEmpty()) this.rooms.delete(room.code);
+            if (room.isEmpty()) this.removeRoom(room.code);
             else {
+              this.schedule(room);
               this.pushRoom(room);
               if (events.length || room.game) this.pushState(room, events);
             }
           }
           return conn.send({ t: 'left' });
         }
+        case 'ready':
+        case 'changeDeck':
+        case 'start': {
+          const room = s.code ? this.rooms.get(s.code) : undefined;
+          if (!room) return fail('你不在任何房間裡');
+          if (msg.t === 'start') {
+            const r = room.start(user.id);
+            if ('error' in r) return fail(r.error);
+            this.schedule(room);
+            this.pushRoom(room);
+            this.pushState(room, r.events);
+            return;
+          }
+          const r = msg.t === 'ready' ? room.setReady(user.id, !!msg.ready) : room.changeDeck(user.id, msg.deck, String(msg.deckName ?? '').slice(0, 24));
+          if ('error' in r) return fail(r.error);
+          return this.pushRoom(room);
+        }
         case 'action': {
           const room = s.code ? this.rooms.get(s.code) : undefined;
           if (!room) return fail('你不在任何房間裡');
           const r = room.apply(user.id, msg.action);
           if ('error' in r) return fail(r.error);
-          this.pushState(room, r.events);
-          if (room.status === 'ended') this.pushRoom(room);
+          this.afterAction(room, r.events);
           return;
         }
       }
@@ -140,8 +157,39 @@ export class RoomManager {
   sweep(now = Date.now()) {
     for (const [code, room] of this.rooms) {
       const anyone = [...room.online].length > 0;
-      if (!anyone && now - room.lastActive > IDLE_ROOM_MS) this.rooms.delete(code);
+      if (!anyone && now - room.lastActive > IDLE_ROOM_MS) this.removeRoom(code);
     }
+  }
+
+  // ── 限時的待決選擇（反擊、給對手確認）：時間到由伺服器代為做預設的動作 ──
+  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  private schedule(room: GameRoom) {
+    clearTimeout(this.timers.get(room.code));
+    this.timers.delete(room.code);
+    const t = room.timeoutAction();
+    room.deadline = t ? Date.now() + t.seconds * 1000 : null;
+    if (!t) return;
+    const step = room.record?.actions.length;
+    this.timers.set(room.code, setTimeout(() => {
+      this.timers.delete(room.code);
+      if (this.rooms.get(room.code) !== room || room.record?.actions.length !== step) return; // 已經有人回應了
+      const r = room.applyAs(t.action);
+      if ('error' in r) return;
+      this.afterAction(room, r.events);
+    }, t.seconds * 1000));
+  }
+
+  private afterAction(room: GameRoom, events: GameEvent[]) {
+    this.schedule(room);
+    this.pushState(room, events);
+    if (room.status === 'ended') this.pushRoom(room);
+  }
+
+  private removeRoom(code: string) {
+    clearTimeout(this.timers.get(code));
+    this.timers.delete(code);
+    this.rooms.delete(code);
   }
 
   // ── 內部 ──
@@ -179,10 +227,9 @@ export class RoomManager {
     s.code = room.code;
     room.online.add(user.id);
     room.touch();
-    const events = room.startIfReady();
     this.pushRoom(room);
-    if (events) this.pushState(room, events);
-    else if (room.game) s.conn.send({ t: 'state', state: room.clientState(room.viewerOf(user.id)!)!, events: [] }); // 重新連線：只補目前的狀態
+    // 對局中進來（重新連線、中途觀戰）：補目前的狀態
+    if (room.game) s.conn.send({ t: 'state', state: room.clientState(room.viewerOf(user.id)!)!, events: [] });
   }
 
   private connsOf(room: GameRoom): { conn: Conn; user: User }[] {

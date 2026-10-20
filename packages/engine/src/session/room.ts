@@ -16,6 +16,7 @@ interface Seat {
   deck: string[];
   deckName: string;
   series: string;
+  ready: boolean; // 加入者按了「準備」（房主不用）
 }
 
 // 構築規則〔5.1.2〕（見 deck-rules.ts）：對戰時一定要剛好 50 張，而且每張卡的效果都已經做完並通過測試
@@ -42,6 +43,8 @@ export class GameRoom {
   lastActive = Date.now();
   // 重播用：種子、雙方牌組、所有操作（引擎是純函式，這些就能完整重現一局）
   record: { seed: number; decks: [string[], string[]]; actions: Action[] } | null = null;
+  hostId: string | null = null; // 房主：開房的人；房主在開局前離開就換成另一位玩家
+  deadline: number | null = null; // 目前的待決選擇自動結束的時間（反擊、給對手確認）
   private readonly engine: Engine;
   private readonly db: ReadonlyMap<string, Card>;
 
@@ -58,7 +61,7 @@ export class GameRoom {
   }
 
   hostName(): string {
-    return (this.seats[0] ?? this.seats[1])?.user.name ?? '';
+    return this.seats.find((s) => s?.user.id === this.hostId)?.user.name ?? (this.seats[0] ?? this.seats[1])?.user.name ?? '';
   }
 
   // ── 加入與離開 ──
@@ -71,9 +74,60 @@ export class GameRoom {
     const err = validateDeck(this.db, deck);
     if (err) return { error: err };
     const cards = deck as string[];
-    this.seats[free] = { user, deck: cards, deckName, series: mainSeries(cards) };
+    this.seats[free] = { user, deck: cards, deckName, series: mainSeries(cards), ready: false };
+    this.hostId ??= user.id;
     this.touch();
     return { seat: free };
+  }
+
+  // 開局前：加入者按「準備」／取消準備
+  setReady(userId: string, ready: boolean): { ok: true } | { error: string } {
+    const v = this.viewerOf(userId);
+    if (v !== 0 && v !== 1) return { error: '只有玩家可以準備' };
+    if (this.status !== 'waiting') return { error: '遊戲已經開始了' };
+    if (userId === this.hostId) return { error: '房主不用準備，等對手準備好就可以開始' };
+    this.seats[v]!.ready = ready;
+    this.touch();
+    return { ok: true };
+  }
+
+  // 開局前更換牌組；加入者換牌組後要重新按準備
+  changeDeck(userId: string, deck: unknown, deckName: string): { ok: true } | { error: string } {
+    const v = this.viewerOf(userId);
+    if (v !== 0 && v !== 1) return { error: '只有玩家可以換牌組' };
+    if (this.status !== 'waiting') return { error: '遊戲已經開始，不能換牌組' };
+    const err = validateDeck(this.db, deck);
+    if (err) return { error: err };
+    const cards = deck as string[];
+    this.seats[v] = { ...this.seats[v]!, deck: cards, deckName, series: mainSeries(cards), ready: false };
+    this.touch();
+    return { ok: true };
+  }
+
+  // 房主按「遊戲開始」：兩個座位都有人、加入者已準備。回傳開局的事件
+  start(userId: string): { events: GameEvent[] } | { error: string } {
+    if (this.status !== 'waiting' || this.game) return { error: '遊戲已經開始了' };
+    if (userId !== this.hostId) return { error: '只有房主可以開始遊戲' };
+    const [a, b] = this.seats;
+    if (!a || !b) return { error: '還在等對手加入' };
+    const guest = a.user.id === this.hostId ? b : a;
+    if (!guest.ready) return { error: '對手還沒準備好' };
+    const seed = (Math.random() * 2 ** 31) >>> 0;
+    const r = this.engine.newGame({ seed, decks: [a.deck, b.deck] });
+    this.game = r.state;
+    this.record = { seed, decks: [a.deck, b.deck], actions: [] };
+    this.status = 'playing';
+    this.touch();
+    return { events: r.events };
+  }
+
+  // 目前的待決選擇有時間限制時，時間到要自動做的動作（反擊：不使用；給對手確認：確認）
+  timeoutAction(): { action: Action; seconds: number } | null {
+    const p = this.game?.pending;
+    if (!p || this.status !== 'playing' || !('timeout' in p) || !p.timeout) return null;
+    if (p.kind === 'counter') return { action: { type: 'pass', player: p.player }, seconds: p.timeout };
+    if (p.kind === 'acknowledge') return { action: { type: 'yesno', player: p.player, yes: true }, seconds: p.timeout };
+    return null;
   }
 
   joinSpectator(user: User): { ok: true } | { error: string } {
@@ -83,18 +137,6 @@ export class GameRoom {
     this.spectators.set(user.id, user.name);
     this.touch();
     return { ok: true };
-  }
-
-  // 兩個座位都坐滿就開局。回傳開局的事件
-  startIfReady(): GameEvent[] | null {
-    const [a, b] = this.seats;
-    if (this.game || !a || !b) return null;
-    const seed = (Math.random() * 2 ** 31) >>> 0;
-    const r = this.engine.newGame({ seed, decks: [a.deck, b.deck] });
-    this.game = r.state;
-    this.record = { seed, decks: [a.deck, b.deck], actions: [] };
-    this.status = 'playing';
-    return r.events;
   }
 
   // 離開房間。對局中的玩家離開視為投降，才不會讓對手一直等
@@ -114,7 +156,12 @@ export class GameRoom {
       this.status = 'ended';
       return { events: r.events };
     }
-    if (this.status === 'waiting') this.seats[v] = null;
+    if (this.status === 'waiting') {
+      this.seats[v] = null;
+      const rest = this.seats.find((s) => s);
+      if (rest) rest.ready = false;
+      if (this.hostId === userId) this.hostId = rest?.user.id ?? null; // 房主離開：留下的玩家變成房主
+    }
     return { events: [] };
   }
 
@@ -128,6 +175,12 @@ export class GameRoom {
     if (v === null || v === 'spectator') return { error: '觀戰者不能操作' };
     if (!this.game || this.status !== 'playing') return { error: '遊戲還沒開始或已經結束' };
     if (!action || typeof action !== 'object' || action.player !== v) return { error: '這不是你的動作' };
+    return this.applyAs(action);
+  }
+
+  // 執行動作（玩家本人送來的，或時間到由伺服器代為執行的預設動作）
+  applyAs(action: Action): { events: GameEvent[] } | { error: string } {
+    if (!this.game || this.status !== 'playing') return { error: '遊戲還沒開始或已經結束' };
     const r = this.engine.apply(this.game, action);
     if (r.error) return { error: r.error };
     this.game = r.state;
@@ -145,7 +198,7 @@ export class GameRoom {
   info(userId: string): RoomInfo {
     const seat = (p: PlayerId): SeatInfo | null => {
       const s = this.seats[p];
-      return s ? { uid: s.user.id, name: s.user.name, series: s.series, deckName: s.deckName, online: this.online.has(s.user.id) } : null;
+      return s ? { uid: s.user.id, name: s.user.name, series: s.series, deckName: s.deckName, online: this.online.has(s.user.id), host: s.user.id === this.hostId, ready: s.ready } : null;
     };
     return {
       code: this.code,
@@ -204,6 +257,7 @@ export class GameRoom {
       soul,
       problems,
       abilityText,
+      timerMs: this.deadline !== null ? Math.max(0, this.deadline - Date.now()) : null,
     };
   }
 }

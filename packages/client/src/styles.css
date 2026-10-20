@@ -847,3 +847,32 @@ button { font: inherit; color: inherit; }
   .deck-side { border-left: 0; border-top: 1px solid var(--line); }
 }
 .toast.bld-toast { top: auto; bottom: 24px; }
+
+/* 等待房間：房主、準備、遊戲開始 */
+.room-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.btn.big { padding: 10px 28px; font-size: 16px; }
+.host-tag { margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; background: color-mix(in srgb, var(--accent) 25%, transparent); color: #ffb3c7; vertical-align: 2px; }
+.seat em + em { margin-left: -4px; }
+p.small { margin: 0; font-size: 13px; }
+
+/* 限時選擇的倒數 */
+.countdown { font-size: 13px; font-weight: 700; color: #ffcf6b; }
+
+/* 選手牌時：剛拿到的卡 */
+.fresh-badge { position: absolute; left: 50%; bottom: calc(var(--u) * 0.32); transform: translateX(-50%); z-index: 2; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; color: #10131a; background: #8ef0a0; box-shadow: 0 2px 6px rgba(0,0,0,0.5); pointer-events: none; }
+
+/* 選舞台上的角色：照舞台擺位 */
+.stage-pick { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 4px; }
+.sp-side { --u: 64px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 10px 10px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.sp-who { align-self: flex-start; font-size: 12px; color: var(--muted); }
+.sp-row { display: flex; gap: calc(var(--u) * 0.3); }
+.sp-row.back { gap: calc(var(--u) * 0.9); }
+.sp-slot { position: relative; width: var(--u); display: flex; flex-direction: column; align-items: center; gap: 3px; border-radius: 8px; }
+.sp-slot.empty { height: calc(var(--u) * 1.4); border: 1.5px dashed rgba(255,255,255,0.14); }
+.sp-img { position: relative; width: 100%; aspect-ratio: 1 / 1.4; }
+.sp-slot.can { cursor: pointer; }
+.sp-slot.can .cimg-in { box-shadow: 0 0 0 2px #ffcf6b, 0 0 10px rgba(255, 207, 107, 0.45); }
+.sp-slot.on .cimg-in { box-shadow: 0 0 0 3px var(--accent), 0 0 18px color-mix(in srgb, var(--accent) 60%, transparent); }
+.sp-slot.on { transform: translateY(-4px); }
+.sp-slot.off { opacity: 0.4; }
+@media (max-height: 520px) { .sp-side { --u: 46px; padding: 6px 8px; } .stage-pick { flex-direction: row; } }

@@ -118,6 +118,9 @@ export interface StandbyAbility {
 }
 
 // 等待玩家回應的選擇（待決選擇）
+// 反擊步驟（助太刀）、給對手確認公開的卡：幾秒內沒回應就自動「不使用」／「確認」，避免卡住
+export const RESPONSE_SECONDS = 10;
+
 export type Pending =
   | { kind: 'mulligan'; player: PlayerId; waiting: PlayerId[] } // 雙方同時換牌：waiting 裡的玩家都可以送出
   | { kind: 'decideFirst'; player: PlayerId; waiting: PlayerId[] } // 決定先後攻：雙方各選 1 張蓋著的卡（同時進行）
@@ -128,11 +131,11 @@ export type Pending =
   | { kind: 'levelUp'; player: PlayerId; options: string[] }
   | { kind: 'encoreChoose'; player: PlayerId; options: string[] }
   | { kind: 'select'; player: PlayerId; prompt: string; options: string[]; min: number; max: number; shown?: string[]; ordered?: boolean; button?: string } // ordered：點選的順序有意義（例如放回牌組上方的順序） // shown：一起顯示的卡（例如看牌組上方 N 張時，全部翻開的牌）
-  | { kind: 'acknowledge'; player: PlayerId; prompt: string; cards: string[]; button?: string } // 公開的卡：看過按確認（button：按鈕文字）
+  | { kind: 'acknowledge'; player: PlayerId; prompt: string; cards: string[]; button?: string; timeout?: number } // 公開的卡：看過按確認（button：按鈕文字；timeout：給對手確認時，幾秒後自動確認）
   | { kind: 'confirm'; player: PlayerId; prompt: string }
   | { kind: 'chooseSlot'; player: PlayerId; prompt: string; slots: Slot[]; owner?: PlayerId } // owner：格子是誰的舞台（沒給＝選擇的人自己）
   | { kind: 'orderAbility'; player: PlayerId; options: { id: number; uid: string; text: string }[]; canSkip: boolean } // canSkip：全部都是可以不發動的能力
-  | { kind: 'counter'; player: PlayerId; options: string[] }
+  | { kind: 'counter'; player: PlayerId; options: string[]; timeout?: number } // timeout：幾秒內沒回應就由伺服器自動略過
   | { kind: 'handLimit'; player: PlayerId; count: number }
   | { kind: 'pick'; player: PlayerId; reason: 'comeback' | 'gate' | 'choice'; options: string[]; dests: ('hand' | 'stock')[] }
   | { kind: 'yesno'; player: PlayerId; reason: 'treasureStock' | 'pool' | 'draw' };

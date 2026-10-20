@@ -59,6 +59,7 @@ describe('莉可麗絲 LRC/W105', () => {
     expect(opts.every((o) => E.cardOf(s, o).type === 'character')).toBe(true);
     const want = opts.find((o) => s.cards[o]!.cardId === C('T17'))!;
     s = choose(s, [want]);
+    expect(s.pending).toMatchObject({ kind: 'acknowledge', player: 1, timeout: 10 }); // 給對手確認：10 秒沒按就自動確認
     s = yes(s); // 對手確認
     expect(s.players[0].hand).toEqual([want]);
   });
@@ -160,6 +161,7 @@ describe('莉可麗絲 LRC/W105', () => {
       const u = put(s, 0, C('T08'), 'hand');
       s = ok(s, { type: 'playCharacter', player: 0, uid: u, slot: 1 });
       expect(s.pending).toMatchObject({ kind: 'acknowledge', cards: [shown], button: '放回牌組上方' });
+      expect(s.pending).not.toHaveProperty('timeout'); // 自己看的公開結果不限時
       s = yes(s);
       expect(s.players[0].deck[0]).toBe(shown);
       if (!hit) {

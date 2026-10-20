@@ -109,7 +109,7 @@ describe('孤獨搖滾 BTR/W107', () => {
     top(s, 0, [C('T16'), C('T15')]); // 公開的那張：《音樂》角色
     s = passUntil(s, 'attackDeclare');
     s = ok(s, { type: 'attack', player: 1, slot: 1, mode: 'front' });
-    expect(s.pending).toEqual({ kind: 'counter', player: 0, options: [backup] });
+    expect(s.pending).toEqual({ kind: 'counter', player: 0, options: [backup], timeout: 10 });
     s = choose(s, [backup]);
     // 公開的卡加到手牌後，手牌只剩那張 → 自動丟掉
     expect(E.power(s, def)).toBe(7500);

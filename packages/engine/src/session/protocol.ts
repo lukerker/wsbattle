@@ -15,6 +15,8 @@ export interface SeatInfo {
   series: string; // 牌組的系列代碼，畫面用來決定主題色
   deckName: string;
   online: boolean;
+  host: boolean; // 房主（按「遊戲開始」的人）
+  ready: boolean; // 加入者按了「準備」
 }
 
 export interface RoomInfo {
@@ -37,6 +39,7 @@ export interface ClientState {
   soul: Record<string, number>;
   problems: Record<string, string | null>; // 你手牌裡每張卡現在打不出去的原因；null＝可以打
   abilityText: Record<string, string>; // 你舞台上起動能力的文字，key＝「卡片:第幾個能力」
+  timerMs: number | null; // 目前的待決選擇還剩幾毫秒會自動結束（反擊、給對手確認）；沒有限時是 null
 }
 
 export type ClientMsg =
@@ -46,6 +49,9 @@ export type ClientMsg =
   | { t: 'create'; deck: string[]; deckName: string; allowSpectators: boolean; maxSpectators: number }
   | { t: 'join'; code: string; role: 'player' | 'spectator'; deck?: string[]; deckName?: string }
   | { t: 'rejoin'; code: string }
+  | { t: 'ready'; ready: boolean } // 加入者：準備／取消準備
+  | { t: 'changeDeck'; deck: string[]; deckName: string } // 開局前換牌組
+  | { t: 'start' } // 房主：遊戲開始
   | { t: 'leave' }
   | { t: 'action'; action: Action };
 
