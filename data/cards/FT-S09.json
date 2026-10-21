@@ -1,0 +1,366 @@
+[
+ {
+  "id": "FT/S09-101",
+  "officialId": "FT/S09-101",
+  "name": "キュートな星霊使い♥ルーシィ",
+  "type": "character",
+  "color": "green",
+  "level": 1,
+  "cost": 1,
+  "power": 3000,
+  "soul": 1,
+  "triggers": [
+   "soul"
+  ],
+  "traits": [
+   "魔法",
+   "鍵"
+  ],
+  "text": [
+   "【永】他のあなたの《魔法》のキャラすべてに、パワーを＋500。",
+   "【起】［①］あなたは自分のキャラを1枚選び、そのターン中、パワーを＋1500。"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-102",
+  "officialId": "FT/S09-102",
+  "name": "鎧の魔導士 エルザ",
+  "type": "character",
+  "color": "red",
+  "level": 2,
+  "cost": 2,
+  "power": 8500,
+  "soul": 2,
+  "triggers": [
+   "soul"
+  ],
+  "traits": [
+   "魔法",
+   "武器"
+  ],
+  "text": [
+   "【自】アンコール［あなたの山札の上から1枚をクロック置場に置く］（このカードが舞台から控え室に置かれた時、あなたはコストを払ってよい。そうしたら、このカードがいた枠に【レスト】して置く）"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-103",
+  "officialId": "FT/S09-103",
+  "name": "炎の魔導士 ナツ",
+  "type": "character",
+  "color": "red",
+  "level": 1,
+  "cost": 1,
+  "power": 7000,
+  "soul": 1,
+  "triggers": [],
+  "traits": [
+   "魔法",
+   "竜"
+  ],
+  "text": [],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-104",
+  "officialId": "FT/S09-104",
+  "name": "ハッピーが生まれた日",
+  "type": "climax",
+  "color": "red",
+  "triggers": [
+   "soul",
+   "soul"
+  ],
+  "traits": [],
+  "text": [
+   "【永】あなたのキャラすべてに、ソウルを＋2。"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-105",
+  "officialId": "FT/S09-105",
+  "name": "氷の造形魔導士 グレイ",
+  "type": "character",
+  "color": "green",
+  "level": 0,
+  "cost": 0,
+  "power": 2500,
+  "soul": 1,
+  "triggers": [],
+  "traits": [
+   "魔法",
+   "氷"
+  ],
+  "text": [
+   "【起】［②］そのターン中、このカードのパワーを＋5000。"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T01",
+  "officialId": "FT/S09-T01",
+  "name": "妖精の尻尾の看板娘 ミラジェーン",
+  "type": "character",
+  "color": "green",
+  "level": 0,
+  "cost": 0,
+  "power": 500,
+  "soul": 1,
+  "triggers": [],
+  "traits": [
+   "魔法",
+   "ウェイトレス"
+  ],
+  "text": [
+   "【永】応援 このカードの前のあなたのキャラすべてに、パワーを＋500。",
+   "【自】この能力は1ターンにつき1回まで発動する。あなたが【起】を使った時、あなたは自分のキャラを1枚選び、そのターン中、パワーを＋500。"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T02",
+  "officialId": "FT/S09-T02",
+  "name": "ルーシィ・ハートフィリア",
+  "type": "character",
+  "color": "green",
+  "level": 0,
+  "cost": 0,
+  "power": 2000,
+  "soul": 1,
+  "triggers": [],
+  "traits": [
+   "魔法",
+   "鍵"
+  ],
+  "text": [
+   "【起】［あなたのキャラを2枚【レスト】する］あなたは自分の《鍵》のキャラを1枚選び、そのターン中、パワーを＋2000。"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T03",
+  "officialId": "FT/S09-T03",
+  "name": "メイド姿のルーシィ",
+  "type": "character",
+  "color": "green",
+  "level": 0,
+  "cost": 0,
+  "power": 3000,
+  "soul": 1,
+  "triggers": [],
+  "traits": [
+   "魔法",
+   "鍵"
+  ],
+  "text": [],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T04",
+  "officialId": "FT/S09-T04",
+  "name": "“拳で語れ”エルフマン",
+  "type": "character",
+  "color": "green",
+  "level": 1,
+  "cost": 0,
+  "power": 4500,
+  "soul": 1,
+  "triggers": [],
+  "traits": [
+   "魔法",
+   "動物"
+  ],
+  "text": [
+   "【起】［あなたのキャラを1枚【レスト】する］そのターン中、このカードのパワーを＋1000。"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T05",
+  "officialId": "FT/S09-T05",
+  "name": "ルーシィ＆ハッピー",
+  "type": "character",
+  "color": "green",
+  "level": 1,
+  "cost": 0,
+  "power": 5500,
+  "soul": 1,
+  "triggers": [],
+  "traits": [
+   "魔法",
+   "鍵"
+  ],
+  "text": [],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T06",
+  "officialId": "FT/S09-T06",
+  "name": "処女宮のバルゴ",
+  "type": "character",
+  "color": "green",
+  "level": 2,
+  "cost": 2,
+  "power": 9000,
+  "soul": 2,
+  "triggers": [
+   "soul"
+  ],
+  "traits": [
+   "鍵",
+   "メイド"
+  ],
+  "text": [],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T07",
+  "officialId": "FT/S09-T07",
+  "name": "DEAR KABY",
+  "type": "climax",
+  "color": "green",
+  "triggers": [
+   "treasure"
+  ],
+  "traits": [],
+  "text": [
+   "【永】あなたのキャラすべてに、パワーを＋1000し、ソウルを＋1。",
+   "（【トレジャー】：このカードがトリガーした時、あなたはこのカードを手札に戻す。あなたは自分の山札の上から1枚を、ストック置場に置いてよい）"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T08",
+  "officialId": "FT/S09-T08",
+  "name": "ハッピー",
+  "type": "character",
+  "color": "red",
+  "level": 0,
+  "cost": 0,
+  "power": 2500,
+  "soul": 1,
+  "triggers": [],
+  "traits": [
+   "魔法",
+   "動物"
+  ],
+  "text": [
+   "【起】［② このカードを【レスト】する］あなたは自分の控え室の《竜》のキャラを1枚選び、手札に戻す。"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T09",
+  "officialId": "FT/S09-T09",
+  "name": "ナツ・ドラグニル",
+  "type": "character",
+  "color": "red",
+  "level": 0,
+  "cost": 0,
+  "power": 3000,
+  "soul": 1,
+  "triggers": [],
+  "traits": [
+   "魔法",
+   "竜"
+  ],
+  "text": [],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T10",
+  "officialId": "FT/S09-T10",
+  "name": "若き竜 ナツ",
+  "type": "character",
+  "color": "red",
+  "level": 1,
+  "cost": 0,
+  "power": 1500,
+  "soul": 1,
+  "triggers": [],
+  "traits": [
+   "魔法",
+   "竜"
+  ],
+  "text": [
+   "【起】【カウンター】助太刀1500 レベル1［手札のこのカードを控え室に置く］（あなたは自分のフロントアタックされているキャラを1枚選び、そのターン中、パワーを＋1500）"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T11",
+  "officialId": "FT/S09-T11",
+  "name": "鉄の滅竜魔導士 ガジル",
+  "type": "character",
+  "color": "red",
+  "level": 2,
+  "cost": 2,
+  "power": 9000,
+  "soul": 2,
+  "triggers": [
+   "soul"
+  ],
+  "traits": [
+   "魔法",
+   "竜"
+  ],
+  "text": [],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T12",
+  "officialId": "FT/S09-T12",
+  "name": "炎の滅竜魔導士 ナツ",
+  "type": "character",
+  "color": "red",
+  "level": 3,
+  "cost": 2,
+  "power": 9500,
+  "soul": 2,
+  "triggers": [
+   "soul"
+  ],
+  "traits": [
+   "魔法",
+   "竜"
+  ],
+  "text": [
+   "【永】あなたの控え室の「火竜の咆哮」が2枚以上なら、このカードのパワーを＋2000。",
+   "【自】このカードが手札から舞台に置かれた時、あなたは自分のクロックの上から1枚を、控え室に置いてよい。"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T13",
+  "officialId": "FT/S09-T13",
+  "name": "Ｓ級クエスト",
+  "type": "event",
+  "color": "red",
+  "level": 1,
+  "cost": 0,
+  "triggers": [],
+  "traits": [],
+  "text": [
+   "あなたは自分のキャラを2枚まで選び、そのターン中、次の能力を与える。『【自】［①］このカードのバトル相手が【リバース】した時、あなたはコストを払ってよい。そうしたら、あなたは自分の控え室のキャラを1枚選び、手札に戻す。』"
+  ],
+  "rare": "TD"
+ },
+ {
+  "id": "FT/S09-T14",
+  "officialId": "FT/S09-T14",
+  "name": "火竜の咆哮",
+  "type": "climax",
+  "color": "red",
+  "triggers": [
+   "soul",
+   "soul"
+  ],
+  "traits": [],
+  "text": [
+   "【自】このカードが手札からクライマックス置場に置かれた時、あなたは自分の山札の上から1枚を、ストック置場に置き、自分のキャラすべてに、そのターン中、ソウルを＋1。"
+  ],
+  "rare": "TD"
+ }
+]

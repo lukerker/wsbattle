@@ -1,7 +1,7 @@
 // 畫面用的資料：卡片資料庫、系列主題色、系統預組、階段名稱與提示。
-import { bdW125, btrW107, gbfS134, gcrSE48, lrcW105, type Card, type Phase } from '@ws/engine';
+import { ALL_CARDS, PRESETS, type Card, type Phase } from '@ws/engine';
 
-export const cardById = new Map<string, Card>([...btrW107.cards, ...bdW125.cards, ...gcrSE48.cards, ...gbfS134.cards, ...lrcW105.cards].map((c) => [c.id, c]));
+export const cardById = new Map<string, Card>(ALL_CARDS.map((c) => [c.id, c]));
 
 const list = (d: { cardId: string; count: number }[]) => d.flatMap((x) => Array<string>(x.count).fill(x.cardId));
 
@@ -12,6 +12,8 @@ export const SERIES: Record<string, { label: string; accent: string }> = {
   GCR: { label: 'Girls Band Cry', accent: '#f26b2a' },
   GBF: { label: '碧藍幻想', accent: '#1fb5d6' },
   LRC: { label: '莉可麗絲', accent: '#e8384f' },
+  FT: { label: 'FAIRY TAIL 魔導少年', accent: '#e8a33c' },
+  CS: { label: '蠟筆小新 電影版', accent: '#f2c230' },
 };
 export const seriesInfo = (code: string) => SERIES[code] ?? { label: code, accent: '#8f99ad' };
 
@@ -23,6 +25,42 @@ for (const c of [...cardById.values()].sort((a, b) => a.id.localeCompare(b.id)))
   SERIES_CARDS.set(c.series, list);
 }
 
+// 相關卡片：效果裡用「卡名」提到的卡（CX 連動、絆、指定卡名的效果），兩邊都會列出；另外列出同名的卡（構築時合計最多 4 張，含 sameNameAs）
+export interface Related {
+  card: Card;
+  label: 'CX連動' | '絆' | '效果相關' | '同名卡';
+}
+const RANK: Record<Related['label'], number> = { CX連動: 0, 絆: 1, 同名卡: 2, 效果相關: 3 };
+export const RELATED = new Map<string, Related[]>();
+{
+  const byName = new Map<string, Card[]>();
+  for (const c of cardById.values()) byName.set(c.name.ja, [...(byName.get(c.name.ja) ?? []), c]);
+  const add = (a: Card, b: Card, label: Related['label']) => {
+    if (a.id === b.id) return;
+    const list = RELATED.get(a.id) ?? [];
+    const x = list.find((r) => r.card.id === b.id);
+    if (!x) list.push({ card: b, label });
+    else if (RANK[label] < RANK[x.label]) x.label = label;
+    RELATED.set(a.id, list);
+  };
+  for (const a of cardById.values()) {
+    for (const same of byName.get(a.name.ja)!) add(a, same, '同名卡');
+    // 「和「X」合計最多 4 張」的卡也算同名
+    for (const alias of a.sameNameAs ?? []) for (const b of byName.get(alias) ?? []) { add(a, b, '同名卡'); add(b, a, '同名卡'); }
+    for (const ab of a.abilities) {
+      const kw = ab.keyword;
+      for (const m of ab.text.ja.matchAll(/「([^」]+)」/g)) {
+        for (const b of byName.get(m[1]!) ?? []) {
+          const label = kw?.id === 'cxCombo' && kw.climaxName === b.name.ja ? 'CX連動' : kw?.id === 'bond' && kw.targetName === b.name.ja ? '絆' : '效果相關';
+          add(a, b, label);
+          add(b, a, label);
+        }
+      }
+    }
+  }
+  for (const list of RELATED.values()) list.sort((x, y) => RANK[x.label] - RANK[y.label] || x.card.id.localeCompare(y.card.id));
+}
+
 export interface DeckInfo {
   id: string;
   name: string;
@@ -32,13 +70,7 @@ export interface DeckInfo {
   notReady?: string | null; // 還不能拿去對戰的原因（自己組的牌組）
 }
 
-export const PRESET_DECKS: DeckInfo[] = [
-  { id: 'preset-BTR-W107', name: '孤獨搖滾 預組', series: 'BTR', cards: list(btrW107.deck), preset: true },
-  { id: 'preset-BD-W125', name: 'Ave Mujica 預組', series: 'BD', cards: list(bdW125.deck), preset: true },
-  { id: 'preset-GCR-SE48', name: 'Girls Band Cry 預組', series: 'GCR', cards: list(gcrSE48.deck), preset: true },
-  { id: 'preset-GBF-S134', name: '碧藍幻想 預組', series: 'GBF', cards: list(gbfS134.deck), preset: true },
-  { id: 'preset-LRC-W105', name: '莉可麗絲 預組', series: 'LRC', cards: list(lrcW105.deck), preset: true },
-];
+export const PRESET_DECKS: DeckInfo[] = PRESETS.map((p) => ({ id: `preset-${p.key}`, name: p.name, series: p.series, cards: list(p.deck), preset: true }));
 
 export const PHASES: { id: Phase; name: string; hint: string }[] = [
   { id: 'stand', name: '起立', hint: '把橫置的角色全部直立起來（自動）。' },

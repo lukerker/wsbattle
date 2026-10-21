@@ -97,6 +97,7 @@ function Half({ view, p, mine, power, soul, selected, glow, dropTargets, dragOve
                   onClick={mine ? undefined : () => onCard(sc.uid, p)}
                 />
                 <PowerTag card={c} power={power(sc.uid)} soul={soul(sc.uid)} />
+                {!!view.markers?.[sc.uid]?.length && <span className="marker-badge" title="這張角色下面的標記">標記 {view.markers[sc.uid]!.length}</span>}
               </>
             )}
             {mine && sc && selected === sc.uid && attackModes[i] && <AttackButtons modes={attackModes[i]!} onAttack={(m) => onAttack(i, m)} />}

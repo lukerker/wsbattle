@@ -44,6 +44,16 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       s.mods = s.mods.filter((m) => m.uid !== uid);
       s.grants = s.grants.filter((g) => g.uid !== uid);
       s.placedThisTurn = s.placedThisTurn.filter((u) => u !== uid);
+      s.usedOnce = s.usedOnce.filter((k) => !k.startsWith(`${uid}|`));
+      s.skipStand = s.skipStand.filter((x) => x.uid !== uid);
+      s.shields = s.shields.filter((x) => x.uid !== uid);
+      // 角色下面的標記：角色離開舞台時放到休息室
+      for (const m of s.markers[uid] ?? []) {
+        const owner = s.cards[m.uid]!.owner;
+        s.players[owner].waiting.push(m.uid);
+        ctx.ev.push({ t: 'move', uid: m.uid, cardId: s.cards[m.uid]!.cardId, from: { p, zone: 'stage', slot: i }, to: { p: owner, zone: 'waiting' } });
+      }
+      delete s.markers[uid];
     } else {
       const arr = src[from];
       arr.splice(arr.indexOf(uid), 1);
@@ -103,7 +113,17 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
   const { power, soul } = fx;
 
   // ── 傷害處理〔4.12〕：回傳是否被取消 ──
-  function dealDamage(ctx: Ctx, p: PlayerId, n: number): 'cancel' | 'clock' | 'lose' {
+  // src：給傷害的卡（攻擊的角色、效果的發生源）；結果記在 lastDamage，誘發 src 的「給的傷害被取消／沒被取消時」
+  function dealDamage(ctx: Ctx, p: PlayerId, n: number, src?: string): 'cancel' | 'clock' | 'lose' {
+    const r = dealDamageCore(ctx, p, n);
+    const { s } = ctx;
+    s.lastDamage = r === 'lose' ? null : r;
+    if (src && r !== 'lose' && s.players[other(p)].stage.some((c) => c?.uid === src)) {
+      fx.fireFor(s, src, r === 'cancel' ? 'dealtDamageCancelled' : 'dealtDamageNotCancelled');
+    }
+    return r;
+  }
+  function dealDamageCore(ctx: Ctx, p: PlayerId, n: number): 'cancel' | 'clock' | 'lose' {
     const { s } = ctx;
     const pl = s.players[p];
     ctx.ev.push({ t: 'damage', p, n });
@@ -173,7 +193,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
   function playProblem(s: GameState, p: PlayerId, uid: string): string | null {
     const card = cardOf(s, uid);
     if (!s.players[p].hand.includes(uid)) return '這張卡不在你的手牌';
-    if (card.type !== 'climax' && (card.level ?? 0) > playerLevel(s, p)) return `等級不足（需要 Lv${card.level}）`;
+    if (card.type !== 'climax' && fx.levelOf(s, uid) > playerLevel(s, p)) return `等級不足（需要 Lv${fx.levelOf(s, uid)}）`;
     if (!colorOk(s, p, card)) return '顏色條件不符：等級區或傷害區沒有同色的卡';
     if ((card.cost ?? 0) > s.players[p].stock.length) return `能量不足（需要 ${card.cost}）`;
     if (card.playCondition && !fx.condOk(s, card.playCondition, uid, p, {})) return '不符合這張卡的出牌條件';
@@ -187,6 +207,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     const a = fx.abilitiesOf(s, uid)[index];
     if (!a || a.kind !== 'activated' || a.timing === 'counter') return '這不是可以在主要階段使用的起動能力';
     if (a.condition && !fx.condOk(s, a.condition, uid, p, {})) return '條件不符';
+    if (fx.usedUp(s, uid, a)) return '這個回合已經使用過了';
     if (!fx.costPayable(s, a.cost ?? [], uid, p)) return '付不起費用';
     return null;
   }
@@ -195,17 +216,17 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
   const counterEvent = (card: Card) => card.type === 'event' ? card.abilities.find((x) => x.kind === 'event' && x.timing === 'counter') : undefined;
   function backupOptions(s: GameState, p: PlayerId): string[] {
     if (s.attack?.mode !== 'front') return [];
+    const noBackup = [s.attack.attacker, s.attack.defender].some((u) => u && fx.hasRule(s, u, 'noBackupInBattle'));
     return s.players[p].hand.filter((u) => {
       if (counterEvent(cardOf(s, u))) return !playProblem(s, p, u);
       const a = cardOf(s, u).abilities.find((x) => x.keyword?.id === 'backup');
-      if (!a || a.keyword?.id !== 'backup') return false;
+      if (!a || a.keyword?.id !== 'backup' || noBackup) return false;
       return playerLevel(s, p) >= a.keyword.level && fx.costPayable(s, a.cost ?? [], u, p);
     });
   }
 
   // 有效的【永】改變規則的能力（不能側打、起立階段不直立…）
-  const hasRule = (s: GameState, uid: string, rule: 'cannotSideAttack' | 'doesNotStand') =>
-    fx.activeContinuous(s).some((a) => a.src === uid && a.ability.rules?.includes(rule));
+  const { hasRule } = fx;
   const cannotSideAttack = (s: GameState, uid: string) => hasRule(s, uid, 'cannotSideAttack');
 
   const attackable = (s: GameState): Slot[] => {
@@ -233,7 +254,10 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         s.attacksThisTurn = 0;
         setPhase(ctx, 'stand'); // 〔6.2〕
         // 「起立階段不直立」的角色留在原狀態
-        for (const c of me.stage) if (c && c.state !== 'stand' && !hasRule(s, c.uid, 'doesNotStand')) setState(ctx, c, 'stand');
+        for (const c of me.stage) {
+          if (c && c.state !== 'stand' && !hasRule(s, c.uid, 'doesNotStand') && !s.skipStand.some((x) => x.uid === c.uid && x.turn === s.turn)) setState(ctx, c, 'stand');
+        }
+        s.skipStand = s.skipStand.filter((x) => x.turn > s.turn);
         then(s, { k: 'drawPhase' }, { k: 'clockPhase' }, { k: 'mainPhase' }, { k: 'climaxPhase' }, { k: 'attackPhase' }, { k: 'encoreStep' }, { k: 'endPhase' });
         return;
       case 'drawPhase':
@@ -246,7 +270,8 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         return;
       case 'mainPhase':
         setPhase(ctx, 'main'); // 〔6.5〕
-        s.pending = { kind: 'main', player: tp };
+        fx.fireGlobal(s, 'myMainPhaseStart');
+        then(s, { k: 'mainContinue' });
         return;
       case 'mainContinue':
         s.pending = { kind: 'main', player: tp };
@@ -262,6 +287,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       case 'attackPhase':
         setPhase(ctx, 'attack'); // 〔7.2.1.1〕「攻擊階段開始時」
         fx.fireGlobal(s, 'opponentAttackPhaseStart');
+        fx.fireGlobal(s, 'myAttackPhaseStart');
         then(s, { k: 'attackDeclare' });
         return;
       case 'attackDeclare':
@@ -270,7 +296,10 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       case 'trigger': {
         // 判定：牌組最上面 1 張翻到解決領域，執行判定圖示，再放進能量區〔7.3.1.2〕
         const n = step.n ?? 1;
-        const more: Step[] = n < (s.attack?.checks ?? 1) ? [{ k: 'trigger', n: n + 1 }] : []; // 「判定 2 次」的效果
+        const total = s.attack?.checks ?? 1;
+        const more: Step[] = n < total ? [{ k: 'trigger', n: n + 1 }] : []; // 「判定 2 次」的效果
+        // 「2回行ったら、あなたは自分のストックの上から1枚を、控え室に置く」
+        if (n === total && total > 1 && s.attack?.afterChecks === 'stockTopToWaiting') more.push({ k: 'stockTopToWaiting', p: tp });
         refreshIfNeeded(ctx, tp);
         const uid = me.deck[0];
         if (!uid) {
@@ -279,7 +308,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         }
         move(ctx, uid, tp, 'deck', 'resolution');
         refreshIfNeeded(ctx, tp);
-        const icons = [...cardOf(s, uid).triggers];
+        const icons = fx.triggersOf(s, uid);
         ctx.ev.push({ t: 'trigger', uid, cardId: s.cards[uid]!.cardId, icons });
         fx.fireGlobal(s, 'myTriggerChecked', uid);
         then(s, ...icons.map((icon) => ({ k: 'icon' as const, icon, uid })), { k: 'toStock', uid }, ...more);
@@ -287,6 +316,11 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       }
       case 'icon':
         return runIcon(ctx, step.icon, step.uid);
+      case 'stockTopToWaiting': {
+        const top = s.players[step.p].stock.at(-1);
+        if (top) move(ctx, top, step.p, 'stock', 'waiting');
+        return;
+      }
       case 'toStock':
         if (me.resolution.includes(step.uid)) move(ctx, step.uid, tp, 'resolution', 'stock');
         return;
@@ -301,7 +335,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         if (!a || me.stage[a.slot]?.uid !== a.attacker) return; // 攻擊角色已不在場〔7.5.1.2.2〕
         const n = soul(s, a.attacker);
         if (n <= 0) return; // 〔7.5.1.2.1〕
-        const r = dealDamage(ctx, other(tp), n);
+        const r = dealDamage(ctx, other(tp), n, a.attacker);
         // 「此卡的戰鬥中，你受到的傷害被取消／沒被取消時」：防禦角色的能力
         if (a.mode === 'front' && a.defender && r !== 'lose' && s.players[other(tp)].stage.some((c) => c?.uid === a.defender)) {
           fx.fireFor(s, a.defender, r === 'cancel' ? 'damageCancelledInBattle' : 'damageNotCancelledInBattle', { battleOpp: a.attacker });
@@ -323,10 +357,17 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
           const opp = c === att ? def : att;
           fx.fireFor(s, c.uid, 'reversedInBattle', { battleOpp: opp.uid });
           fx.fireFor(s, opp.uid, 'battleOpponentReversed', { battleOpp: c.uid });
+          fx.fireAlly(s, c === att ? tp : other(tp), 'allyReversed', c.uid);
         }
         return;
       }
-      case 'attackEnd':
+      case 'attackEnd': {
+        const a = s.attack;
+        if (a && me.stage[a.slot]?.uid === a.attacker) fx.fireFor(s, a.attacker, 'attackEnd', { battleOpp: a.defender ?? undefined });
+        then(s, { k: 'attackClear' });
+        return;
+      }
+      case 'attackClear':
         s.attack = null;
         return;
       case 'encoreStep':
@@ -356,17 +397,28 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         for (const u of [...me.climax]) move(ctx, u, tp, 'climax', 'waiting'); // 〔6.8.1.3〕
         // 「那個回合中」的效果消失〔6.8.1.4〕；「到下次的對手回合結束前」的留到那個回合
         s.mods = s.mods.filter((m) => m.until !== undefined && m.until > s.turn);
-        s.grants = [];
+        s.grants = s.grants.filter((g) => g.until !== undefined && g.until > s.turn);
+        s.shields = s.shields.filter((x) => x.until > s.turn);
         s.placedThisTurn = [];
+        s.usedOnce = [];
         s.turnPlayer = other(tp);
         then(s, { k: 'turnStart' });
         return;
       case 'draw':
         for (let i = 0; i < step.n; i++) drawOne(ctx, step.p);
         return;
-      case 'damage':
-        dealDamage(ctx, step.p, step.n);
+      case 'damage': {
+        // 「相手のキャラの【自】の効果によるダメージを受けず」：受傷的玩家在防護中的角色正在戰鬥
+        const a = s.attack;
+        const srcIsChar = step.src && cardOf(s, step.src).type === 'character' && s.cards[step.src]!.owner !== step.p;
+        const shielded = step.auto && srcIsChar && a && s.shields.some((x) => x.p === step.p && (x.uid === a.attacker || x.uid === a.defender));
+        if (shielded) {
+          ctx.ev.push({ t: 'log', p: step.p, text: `不受「${cardOf(s, step.src!).name.zh}」的 ${step.n} 點傷害（防護效果）` });
+          return;
+        }
+        dealDamage(ctx, step.p, step.n, step.src);
         return;
+      }
       case 'levelCheck': {
         // 升級〔9.3〕：傷害區 7 張以上，從最下面 7 張選 1 張到等級區
         const pl = s.players[step.p];
@@ -503,6 +555,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
           move(ctx, a.uid, p, 'hand', 'stage', { slot: a.slot });
           s.placedThisTurn.push(a.uid);
           fx.fireFor(s, a.uid, 'placedFromHandToStage');
+          fx.fireAlly(s, p, 'allyPlacedFromHand', a.uid);
           then(s, { k: 'mainContinue' });
           return null;
         }
@@ -523,6 +576,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
           if (err) return err;
           s.pending = null;
           then(s, { k: 'mainContinue' });
+          fx.fireUsedActivated(s, p);
           fx.startPlayed(ctx, a.uid, p, fx.abilitiesOf(s, a.uid)[a.index]!);
           return null;
         }
@@ -532,6 +586,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
           const x = pl.stage[a.from] ?? null;
           const y = pl.stage[a.to] ?? null;
           if (!x && !y) return '兩格都沒有角色';
+          if ([x, y].some((c) => c && hasRule(s, c.uid, 'cannotMove'))) return '這張角色不能移到其他格子';
           pl.stage[a.from] = y;
           pl.stage[a.to] = x;
           if (x) ctx.ev.push({ t: 'move', uid: x.uid, cardId: s.cards[x.uid]!.cardId, from: { p, zone: 'stage', slot: a.from }, to: { p, zone: 'stage', slot: a.to } });
@@ -550,6 +605,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         if (err) return err;
         s.pending = null;
         move(ctx, a.uid, p, 'hand', 'climax'); // 只能打 1 張〔6.6.1.2.2〕
+        fx.fireFor(s, a.uid, 'placedToClimaxZone');
         fx.fireGlobal(s, 'climaxPlaced', a.uid);
         return null;
       }
@@ -568,7 +624,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         if (mode === 'side' && cannotSideAttack(s, attacker.uid)) return '這張卡不能側打';
         if (mode === 'direct') s.mods.push({ uid: attacker.uid, power: 0, soul: 1 });
         if (mode === 'side') {
-          const lv = cardOf(s, defender!.uid).level ?? 0;
+          const lv = fx.levelOf(s, defender!.uid);
           if (lv > 0) s.mods.push({ uid: attacker.uid, power: 0, soul: -lv }); // 〔7.2.1.4.2〕
         }
         ctx.ev.push({ t: 'attack', uid: attacker.uid, slot: a.slot, mode });
@@ -577,7 +633,11 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
         s.attacksThisTurn++;
         s.pending = null;
         fx.fireFor(s, attacker.uid, 'attacks', { battleOpp: s.attack.defender ?? undefined });
-        if (mode === 'front') fx.fireAllyFrontAttacked(s, defender!.uid); // 「你的其他角色被正打時」
+        fx.fireAlly(s, p, 'allyAttacks', attacker.uid);
+        if (mode === 'front') {
+          fx.fireFor(s, defender!.uid, 'frontAttacked', { battleOpp: attacker.uid });
+          fx.fireAllyFrontAttacked(s, defender!.uid); // 「你的其他角色被正打時」
+        }
         // 判定 →（正打才有）反擊 → 傷害 →（正打才有）戰鬥 → 下一次攻擊宣告
         const steps: Step[] = [{ k: 'trigger' }];
         if (mode === 'front') steps.push({ k: 'counter' });
@@ -605,6 +665,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
           return null;
         }
         const backup = cardOf(s, uid).abilities.find((x) => x.keyword?.id === 'backup')!;
+        fx.fireUsedActivated(s, p);
         fx.startPlayed(ctx, uid, p, backup, [{ op: '_fireUsedBackup' }]);
         return null;
       }
@@ -686,6 +747,9 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       case 'chooseSlot':
         if (a.type !== 'chooseSlot') return wrong;
         return fx.answer(ctx, pend, a.slot);
+      case 'chooseOption':
+        if (a.type !== 'choose') return wrong;
+        return fx.answer(ctx, pend, a.uids);
     }
   }
 
@@ -742,7 +806,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
   function newGame(opts: NewGameOptions): ApplyResult {
     const s: GameState = {
       rng: opts.seed >>> 0 || 1, cards: {}, players: [emptyPlayer(), emptyPlayer()], firstPlayer: 0, turnPlayer: 0, turn: 0,
-      phase: 'setup', attack: null, attacksThisTurn: 0, mods: [], grants: [], placedThisTurn: [], standby: [], nextId: 1, queue: [], pending: null, winner: null,
+      phase: 'setup', attack: null, attacksThisTurn: 0, mods: [], grants: [], placedThisTurn: [], usedOnce: [], markers: {}, skipStand: [], shields: [], lastDamage: null, standby: [], nextId: 1, queue: [], pending: null, winner: null,
       firstPick: null,
     };
     const ctx: Ctx = { s, ev: [] };
@@ -814,8 +878,12 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
             if (!activateProblem(s, player, c.uid, index)) out.push({ type: 'activate', player, uid: c.uid, index });
           });
         }
-        for (let from = 0; from < 5; from++)
-          for (let to = from + 1; to < 5; to++) if (pl.stage[from] || pl.stage[to]) out.push({ type: 'moveStage', player, from: from as Slot, to: to as Slot });
+        for (let from = 0; from < 5; from++) {
+          for (let to = from + 1; to < 5; to++) {
+            const pair = [pl.stage[from], pl.stage[to]];
+            if (pair.some(Boolean) && !pair.some((c) => c && hasRule(s, c.uid, 'cannotMove'))) out.push({ type: 'moveStage', player, from: from as Slot, to: to as Slot });
+          }
+        }
         out.push({ type: 'pass', player });
         break;
       case 'climax':
@@ -868,6 +936,9 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       case 'chooseSlot':
         for (const slot of pend.slots) out.push({ type: 'chooseSlot', player, slot });
         break;
+      case 'chooseOption':
+        pend.options.forEach((_, i) => choose([String(i)]));
+        break;
       case 'orderAbility':
         if (pend.canSkip) choose([]);
         for (const o of pend.options) choose([String(o.id)]);
@@ -876,7 +947,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     return out;
   }
 
-  return { newGame, apply, legalActions, power, soul, playProblem, cardOf, abilitiesOf: fx.abilitiesOf };
+  return { newGame, apply, legalActions, power, soul, playProblem, cardOf, abilitiesOf: fx.abilitiesOf, levelOf: fx.levelOf };
 }
 
 export type Engine = ReturnType<typeof createEngine>;

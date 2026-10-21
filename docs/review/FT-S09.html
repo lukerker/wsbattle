@@ -1,0 +1,510 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>FT-S09 核對表</title>
+<style>body{font:14px/1.6 system-ui,sans-serif;max-width:1200px;margin:2rem auto;padding:0 1rem}
+section{border-top:2px solid #ccc;margin-top:1.5rem}table{border-collapse:collapse;width:100%}
+td,th{border:1px solid #ccc;padding:6px;vertical-align:top;width:33%}pre{margin:0;white-space:pre-wrap;font-size:11px}
+.warn{color:#b45309;margin:4px 0}.note{color:#555}small{color:#888;font-weight:normal}</style>
+<h1>FT-S09 預組核對表</h1><p>請逐張核對：日文是否讀對、中文是否通順、程式化結果是否和原文一致。有 ⚠ 的是我不確定的地方。</p>
+<section><h2>FT/S09-T01　妖精尾巴的招牌女孩 蜜拉珍 <small>妖精の尻尾の看板娘 ミラジェーン</small> ×4</h2>
+<p>綠｜角色｜Lv0｜費用0｜攻擊500｜魂傷1｜特徵：魔法(魔法)、女服務生(ウェイトレス)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】応援 このカードの前のあなたのキャラすべてに、パワーを＋500。</td><td>【永】應援 此卡前面的你的角色全部，攻擊力+500。</td><td><pre>{
+ "kind": "continuous",
+ "keyword": {
+  "id": "assist"
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "frontOfSource"
+   },
+   "amount": 500,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr><tr><td>【自】この能力は1ターンにつき1回まで発動する。あなたが【起】を使った時、あなたは自分のキャラを1枚選び、そのターン中、パワーを＋500。</td><td>【自】此能力每回合最多發動1次。當你使用【起】時，你選擇自己的角色1張，在那個回合中，攻擊力+500。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "usedActivated"
+ },
+ "perTurn": 1,
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    }
+   },
+   "amount": 500,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre><p class="warn">⚠ 「【起】を使った時」：主要階段使用舞台角色的【起】、反擊步驟使用助太刀（也是【起】）都算。</p></td></tr></table>
+
+<p class="note">白話：放後列：斜前方2格的角色+500。每回合第一次使用【起】（例如露西、艾爾夫曼的能力）時，再選1張角色+500。</p></section>
+<section><h2>FT/S09-T02　露西·哈特菲利亞 <small>ルーシィ・ハートフィリア</small> ×4</h2>
+<p>綠｜角色｜Lv0｜費用0｜攻擊2000｜魂傷1｜特徵：魔法(魔法)、鑰匙(鍵)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【起】［あなたのキャラを2枚【レスト】する］あなたは自分の《鍵》のキャラを1枚選び、そのターン中、パワーを＋2000。</td><td>【起】［將你的角色2張【橫置】］你選擇自己的《鑰匙》的角色1張，在那個回合中，攻擊力+2000。</td><td><pre>{
+ "kind": "activated",
+ "cost": [
+  {
+   "kind": "rest",
+   "selector": {
+    "zone": "stage",
+    "side": "self",
+    "state": "stand",
+    "count": {
+     "exactly": 2
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "filter": {
+     "trait": "鍵"
+    },
+    "count": {
+     "exactly": 1
+    }
+   },
+   "amount": 2000,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre><p class="warn">⚠ 橫置的2張可以包含露西自己。</p></td></tr></table>
+
+<p class="note">白話：把自己的2張角色橫置（通常是後列），讓1張《鑰匙》角色這回合+2000。橫置的角色這回合不能攻擊，所以用後列的角色付。</p></section>
+<section><h2>FT/S09-T03　女僕裝的露西 <small>メイド姿のルーシィ</small> ×2</h2>
+<p>綠｜角色｜Lv0｜費用0｜攻擊3000｜魂傷1｜特徵：魔法(魔法)、鑰匙(鍵)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td colspan="3">（無效果，純數值）</td></tr></table>
+
+<p class="note">白話：沒有效果，但是Lv0就有3000。</p></section>
+<section><h2>FT/S09-T04　"用拳頭說話" 艾爾夫曼 <small>“拳で語れ”エルフマン</small> ×2</h2>
+<p>綠｜角色｜Lv1｜費用0｜攻擊4500｜魂傷1｜特徵：魔法(魔法)、動物(動物)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【起】［あなたのキャラを1枚【レスト】する］そのターン中、このカードのパワーを＋1000。</td><td>【起】［將你的角色1張【橫置】］在那個回合中，此卡的攻擊力+1000。</td><td><pre>{
+ "kind": "activated",
+ "cost": [
+  {
+   "kind": "rest",
+   "selector": {
+    "zone": "stage",
+    "side": "self",
+    "state": "stand",
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": 1000,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre><p class="warn">⚠ 橫置的角色可以是艾爾夫曼自己（橫置後這回合就不能攻擊）。</p></td></tr></table>
+
+<p class="note">白話：橫置1張自己的角色（通常是後列），他這回合+1000。可以用好幾次，每次橫置不同的角色。</p></section>
+<section><h2>FT/S09-T05　露西＆哈比 <small>ルーシィ＆ハッピー</small> ×2</h2>
+<p>綠｜角色｜Lv1｜費用0｜攻擊5500｜魂傷1｜特徵：魔法(魔法)、鑰匙(鍵)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td colspan="3">（無效果，純數值）</td></tr></table>
+
+<p class="note">白話：沒有效果，但是Lv1、費用0就有5500。</p></section>
+<section><h2>FT/S09-T06　處女宮的巴爾格 <small>処女宮のバルゴ</small> ×2</h2>
+<p>綠｜角色｜Lv2｜費用2｜攻擊9000｜魂傷2｜判定：soul｜特徵：鑰匙(鍵)、女僕(メイド)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td colspan="3">（無效果，純數值）</td></tr></table>
+
+<p class="note">白話：沒有效果，Lv2就有9000、魂傷2。</p></section>
+<section><h2>FT/S09-T07　DEAR KABY <small>DEAR KABY</small> ×4</h2>
+<p>綠｜名場面｜判定：treasure</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】あなたのキャラすべてに、パワーを＋1000し、ソウルを＋1。（【トレジャー】：このカードがトリガーした時、あなたはこのカードを手札に戻す。あなたは自分の山札の上から1枚を、ストック置場に置いてよい）</td><td>【永】你的角色全部，攻擊力+1000，魂傷+1。(金條：當你判定出此卡時，你將此卡回到手牌。你可以將自己的牌組上方1張，放到能量區)</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 1000,
+   "duration": "whileActive"
+  },
+  {
+   "op": "modifySoul",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 1,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：在名場面階段從手牌打出，效果持續到這回合結束：全部角色攻擊力+1000、魂傷+1。判定翻到這張時：這張回到手牌，還可以把牌組最上面1張放進能量區。</p></section>
+<section><h2>FT/S09-T08　哈比 <small>ハッピー</small> ×2</h2>
+<p>紅｜角色｜Lv0｜費用0｜攻擊2500｜魂傷1｜特徵：魔法(魔法)、動物(動物)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【起】［② このカードを【レスト】する］あなたは自分の控え室の《竜》のキャラを1枚選び、手札に戻す。</td><td>【起】［② 將此卡【橫置】］你選擇自己休息室的《龍》的角色1張，回到手牌。</td><td><pre>{
+ "kind": "activated",
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 2
+  },
+  {
+   "kind": "restSource"
+  }
+ ],
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "waitingRoom",
+    "side": "self",
+    "filter": {
+     "type": "character",
+     "trait": "竜"
+    },
+    "count": {
+     "exactly": 1
+    }
+   },
+   "to": {
+    "zone": "hand",
+    "side": "self"
+   }
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：付2能量並把哈比橫置，從休息室撿回1張《龍》角色（納茲、加吉爾）。放後列使用。</p></section>
+<section><h2>FT/S09-T09　納茲·多拉格尼爾 <small>ナツ・ドラグニル</small> ×4</h2>
+<p>紅｜角色｜Lv0｜費用0｜攻擊3000｜魂傷1｜特徵：魔法(魔法)、龍(竜)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td colspan="3">（無效果，純數值）</td></tr></table>
+
+<p class="note">白話：沒有效果，但是Lv0就有3000。</p></section>
+<section><h2>FT/S09-T10　年輕的龍 納茲 <small>若き竜 ナツ</small> ×2</h2>
+<p>紅｜角色｜Lv1｜費用0｜攻擊1500｜魂傷1｜特徵：魔法(魔法)、龍(竜)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【起】【カウンター】助太刀1500 レベル1［手札のこのカードを控え室に置く］（あなたは自分のフロントアタックされているキャラを1枚選び、そのターン中、パワーを＋1500）</td><td>【起】【反擊】助太刀1500 等級1［手牌的此卡放到休息室］(你選擇自己的正在被正打的角色1張，在那個回合中，攻擊力+1500)</td><td><pre>{
+ "kind": "activated",
+ "keyword": {
+  "id": "backup",
+  "power": 1500,
+  "level": 1
+ },
+ "timing": "counter",
+ "cost": [
+  {
+   "kind": "discardSource"
+  }
+ ],
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    },
+    "relation": "inBattleWithSource"
+   },
+   "amount": 1500,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：防守卡：對手正打你的角色時，不用付能量就能從手牌丟出，被打的角色+1500。自己的等級要達到1才能用。</p></section>
+<section><h2>FT/S09-T11　鐵之滅龍魔導士 加吉爾 <small>鉄の滅竜魔導士 ガジル</small> ×2</h2>
+<p>紅｜角色｜Lv2｜費用2｜攻擊9000｜魂傷2｜判定：soul｜特徵：魔法(魔法)、龍(竜)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td colspan="3">（無效果，純數值）</td></tr></table>
+
+<p class="note">白話：沒有效果，Lv2就有9000、魂傷2。</p></section>
+<section><h2>FT/S09-T12　火之滅龍魔導士 納茲 <small>炎の滅竜魔導士 ナツ</small> ×4</h2>
+<p>紅｜角色｜Lv3｜費用2｜攻擊9500｜魂傷2｜判定：soul｜特徵：魔法(魔法)、龍(竜)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】あなたの控え室の「火竜の咆哮」が2枚以上なら、このカードのパワーを＋2000。</td><td>【永】你的休息室的「火龍的咆哮」在2張以上的話，此卡的攻擊力+2000。</td><td><pre>{
+ "kind": "continuous",
+ "condition": {
+  "kind": "countAtLeast",
+  "selector": {
+   "zone": "waitingRoom",
+   "side": "self",
+   "filter": {
+    "name": "火竜の咆哮"
+   },
+   "count": "all"
+  },
+  "n": 2
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": 2000,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr><tr><td>【自】このカードが手札から舞台に置かれた時、あなたは自分のクロックの上から1枚を、控え室に置いてよい。</td><td>【自】此卡從手牌被放置到舞台時，你可以將自己的傷害區上方1張，放到休息室。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "optional": true,
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "clock",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    },
+    "position": "top"
+   },
+   "to": {
+    "zone": "waitingRoom",
+    "side": "self"
+   }
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：登場時回1血。休息室有2張以上「火龍的咆哮」時變成11500。</p></section>
+<section><h2>FT/S09-T13　S級任務 <small>Ｓ級クエスト</small> ×2</h2>
+<p>紅｜事件｜Lv1｜費用0</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>あなたは自分のキャラを2枚まで選び、そのターン中、次の能力を与える。『【自】［①］このカードのバトル相手が【リバース】した時、あなたはコストを払ってよい。そうしたら、あなたは自分の控え室のキャラを1枚選び、手札に戻す。』</td><td>你選擇自己的角色最多2張，在那個回合中，給予以下能力。『【自】［①］此卡的戰鬥對手【倒置】時，你可以支付代價。支付代價的話，你選擇自己休息室的角色1張，回到手牌。』</td><td><pre>{
+ "kind": "event",
+ "effects": [
+  {
+   "op": "grantAbility",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": {
+     "upTo": 2
+    }
+   },
+   "duration": "thisTurn",
+   "ability": {
+    "kind": "auto",
+    "trigger": {
+     "event": "battleOpponentReversed"
+    },
+    "optional": true,
+    "cost": [
+     {
+      "kind": "stock",
+      "n": 1
+     }
+    ],
+    "effects": [
+     {
+      "op": "moveCards",
+      "from": {
+       "zone": "waitingRoom",
+       "side": "self",
+       "filter": {
+        "type": "character"
+       },
+       "count": {
+        "exactly": 1
+       }
+      },
+      "to": {
+       "zone": "hand",
+       "side": "self"
+      }
+     }
+    ],
+    "text": {
+     "ja": "【自】［①］このカードのバトル相手が【リバース】した時、あなたはコストを払ってよい。そうしたら、あなたは自分の控え室のキャラを1枚選び、手札に戻す。",
+     "zh": "【自】［①］此卡的戰鬥對手【倒置】時，你可以支付代價。支付代價的話，你選擇自己休息室的角色1張，回到手牌。"
+    }
+   }
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：主要階段使用：選最多2張角色，這回合它們打倒對手時，可以付1能量從休息室撿回1張角色。</p></section>
+<section><h2>FT/S09-T14　火龍的咆哮 <small>火竜の咆哮</small> ×2</h2>
+<p>紅｜名場面｜判定：soul+soul</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードが手札からクライマックス置場に置かれた時、あなたは自分の山札の上から1枚を、ストック置場に置き、自分のキャラすべてに、そのターン中、ソウルを＋1。</td><td>【自】此卡從手牌被放置到名場面區時，你將自己的牌組上方1張，放到能量區，自己的角色全部，在那個回合中，魂傷+1。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedToClimaxZone"
+ },
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "deck",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    },
+    "fromTop": 1
+   },
+   "to": {
+    "zone": "stock",
+    "side": "self"
+   }
+  },
+  {
+   "op": "modifySoul",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 1,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：打出時：牌組最上面1張進能量區，全部角色這回合魂傷+1（攻擊力不加）。這張進休息室後，2張以上會讓「火之滅龍魔導士 納茲」+2000。</p></section>
+<section><h2>FT/S09-101　可愛的星靈魔導士♥露西 <small>キュートな星霊使い♥ルーシィ</small> ×2</h2>
+<p>綠｜角色｜Lv1｜費用1｜攻擊3000｜魂傷1｜判定：soul｜特徵：魔法(魔法)、鑰匙(鍵)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】他のあなたの《魔法》のキャラすべてに、パワーを＋500。</td><td>【永】其他的你的《魔法》的角色全部，攻擊力+500。</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "filter": {
+     "trait": "魔法",
+     "excludeSource": true
+    },
+    "count": "all"
+   },
+   "amount": 500,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr><tr><td>【起】［①］あなたは自分のキャラを1枚選び、そのターン中、パワーを＋1500。</td><td>【起】［①］你選擇自己的角色1張，在那個回合中，攻擊力+1500。</td><td><pre>{
+ "kind": "activated",
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 1
+  }
+ ],
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    }
+   },
+   "amount": 1500,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：其他《魔法》角色全部+500。付1能量讓1張角色這回合+1500，可以用好幾次。</p></section>
+<section><h2>FT/S09-102　鎧甲魔導士 艾爾莎 <small>鎧の魔導士 エルザ</small> ×4</h2>
+<p>紅｜角色｜Lv2｜費用2｜攻擊8500｜魂傷2｜判定：soul｜特徵：魔法(魔法)、武器(武器)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】アンコール［あなたの山札の上から1枚をクロック置場に置く］（このカードが舞台から控え室に置かれた時、あなたはコストを払ってよい。そうしたら、このカードがいた枠に【レスト】して置く）</td><td>【自】安可［將你的牌組上方1張放到傷害區］(此卡從舞台被放到休息室時，你可以支付代價。支付代價的話，將此卡【橫置】放到原本的格子)</td><td><pre>{
+ "kind": "auto",
+ "keyword": {
+  "id": "encore"
+ },
+ "trigger": {
+  "event": "sourceLeavesStageToWaitingRoom"
+ },
+ "optional": true,
+ "cost": [
+  {
+   "kind": "deckTopToClock"
+  }
+ ],
+ "effects": [
+  {
+   "op": "returnSourceToSlot",
+   "state": "rest"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：被打倒時，可以把牌組最上面1張放進傷害區（自己吃1點傷害），讓她橫置回到原本的格子。不用付能量就能安可。</p></section>
+<section><h2>FT/S09-103　火焰魔導士 納茲 <small>炎の魔導士 ナツ</small> ×2</h2>
+<p>紅｜角色｜Lv1｜費用1｜攻擊7000｜魂傷1｜特徵：魔法(魔法)、龍(竜)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td colspan="3">（無效果，純數值）</td></tr></table>
+
+<p class="note">白話：沒有效果，但是Lv1就有7000。</p></section>
+<section><h2>FT/S09-104　哈比誕生的日子 <small>ハッピーが生まれた日</small> ×2</h2>
+<p>紅｜名場面｜判定：soul+soul</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】あなたのキャラすべてに、ソウルを＋2。</td><td>【永】你的角色全部，魂傷+2。</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifySoul",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 2,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：沒有連動角色，效果就是全隊魂傷+2，用來把傷害打高。判定翻到這張時：這次攻擊魂傷+2。</p></section>
+<section><h2>FT/S09-105　冰之造形魔導士 格雷 <small>氷の造形魔導士 グレイ</small> ×2</h2>
+<p>綠｜角色｜Lv0｜費用0｜攻擊2500｜魂傷1｜特徵：魔法(魔法)、冰(氷)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【起】［②］そのターン中、このカードのパワーを＋5000。</td><td>【起】［②］在那個回合中，此卡的攻擊力+5000。</td><td><pre>{
+ "kind": "activated",
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 2
+  }
+ ],
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": 5000,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：Lv0就有2500，付2能量這回合變成7500，可以打倒高等級的角色。</p></section></html>

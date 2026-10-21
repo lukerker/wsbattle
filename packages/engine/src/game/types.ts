@@ -45,6 +45,7 @@ export interface AttackInfo {
   mode: AttackMode;
   defender: string | null;
   checks?: number; // 判定步驟要做幾次判定（預設 1）
+  afterChecks?: 'stockTopToWaiting'; // 判定做滿 checks 次之後：能量區上方 1 張放到休息室
 }
 
 // 引擎內部待執行的步驟（堆疊，最後一個先執行）
@@ -61,12 +62,14 @@ export type Step =
   | { k: 'counter' }
   | { k: 'attackDamage' }
   | { k: 'battle' }
-  | { k: 'attackEnd' }
+  | { k: 'attackEnd' } // 攻擊的終わり：誘發「アタックの終わりに」
+  | { k: 'attackClear' }
+  | { k: 'stockTopToWaiting'; p: PlayerId }
   | { k: 'encoreStep' }
   | { k: 'endPhase' }
   | { k: 'endPhaseCleanup' }
   | { k: 'draw'; p: PlayerId; n: number }
-  | { k: 'damage'; p: PlayerId; n: number }
+  | { k: 'damage'; p: PlayerId; n: number; src?: string; auto?: boolean } // src＝給傷害的卡（效果傷害）；auto＝來自【自】的效果
   | { k: 'levelCheck'; p: PlayerId }
   | { k: 'frame'; f: Frame } // 執行一段效果
   | { k: 'abilityStart'; w: StandbyAbility } // 自動能力開始解決（檢查條件、費用、是否發動）
@@ -80,13 +83,13 @@ export interface FrameCtx {
   battleOpp?: string; // 誘發時的戰鬥對手（最終情報〔8.11.2〕）
   slot?: Slot; // 離開舞台時原本的格子（安可用）
   target?: string; // 誘發這個能力的其他卡（「其他角色被放到休息室時」的那張角色）
+  x?: number; // setX 決定的 X
 }
 
 // 效果之外，用來表達費用與流程的內部動作
 export type InternalOp =
   | { op: '_confirm'; prompt: string }
   | { op: '_payStock'; n: number }
-  | { op: '_discard'; selector: Selector }
   | { op: '_discardSource' }
   | { op: '_restSource' }
   | { op: '_sendSourceToWR' }
@@ -94,7 +97,15 @@ export type InternalOp =
   | { op: '_sourceToDeckBottom' }
   | { op: '_deckTopToClock' }
   | { op: '_fireUsedBackup' }
-  | { op: '_eventDone' };
+  | { op: '_eventDone' }
+  | { op: '_markOnce'; key: string } // 記下「1 回合 N 次」的能力已經發動
+  | { op: '_discard'; selector: Selector; bind?: string }
+  | { op: '_handToClock' }
+  | { op: '_reveal'; selector: Selector }
+  | { op: '_handToDeckBottom'; selector: Selector }
+  | { op: '_returnSourceToHand' }
+  | { op: '_ifCancelled'; then: Effect[] } // 剛才的傷害被取消的話
+  | { op: '_fireConcentrate' }; // 集中結算完：名場面進了休息室就誘發「使用集中時」
 
 export interface Frame {
   src: string; // 發生源（能力所屬的卡）
@@ -106,6 +117,7 @@ export interface Frame {
   ctx: FrameCtx;
   tmp: Record<string, unknown>; // 目前這個動作的暫存（已選的卡等）
   answer?: string[] | boolean | number;
+  auto?: boolean; // 這段效果來自【自】（「相手のキャラの【自】の効果によるダメージ」）
 }
 
 // 待機中的自動能力〔8.7.2〕
@@ -138,7 +150,8 @@ export type Pending =
   | { kind: 'counter'; player: PlayerId; options: string[]; timeout?: number } // timeout：幾秒內沒回應就由伺服器自動略過
   | { kind: 'handLimit'; player: PlayerId; count: number }
   | { kind: 'pick'; player: PlayerId; reason: 'comeback' | 'gate' | 'choice'; options: string[]; dests: ('hand' | 'stock')[] }
-  | { kind: 'yesno'; player: PlayerId; reason: 'treasureStock' | 'pool' | 'draw' };
+  | { kind: 'yesno'; player: PlayerId; reason: 'treasureStock' | 'pool' | 'draw' }
+  | { kind: 'chooseOption'; player: PlayerId; prompt: string; options: string[] }; // 選 1 個效果（回答 choose，uids＝[選項的序號]）
 
 export type Action =
   | { type: 'mulligan'; player: PlayerId; discard: string[] }
@@ -192,8 +205,13 @@ export interface GameState {
   attack: AttackInfo | null;
   attacksThisTurn: number;
   mods: TurnMod[];
-  grants: { uid: string; ability: Ability }[]; // 「那個回合中」給予的能力
+  grants: { uid: string; ability: Ability; until?: number }[]; // 「那個回合中」給予的能力（until＝持續到第幾回合結束）
   placedThisTurn: string[]; // 這個回合從手牌放到舞台的卡
+  markers: Record<string, { uid: string; faceUp: boolean }[]>; // 角色下面的標記（角色離開舞台時一起放到休息室）
+  skipStand: { uid: string; turn: number }[]; // 第 turn 回合的起立階段不【直立】
+  shields: { p: PlayerId; uid: string; until: number }[]; // p 在 uid 的戰鬥中不受對手角色【自】效果的傷害，到第 until 回合結束
+  lastDamage: 'cancel' | 'clock' | null; // 最近一次傷害處理的結果
+  usedOnce: string[]; // 這個回合已經發動過的「1 回合 1 次」能力（卡 uid＋能力原文）
   standby: StandbyAbility[];
   nextId: number;
   queue: Step[];

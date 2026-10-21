@@ -5,10 +5,13 @@ import * as btr from '../cards/btr-w107.ts';
 import * as gcr from '../cards/gcr-se48.ts';
 import * as gbf from '../cards/gbf-s134.ts';
 import * as lrc from '../cards/lrc-w105.ts';
+import * as ft from '../cards/ft-s09.ts';
+import * as cs from '../cards/cs-s114.ts';
+import { ALL_CARDS } from '../cards/index.ts';
 import { createEngine } from './engine.ts';
 import type { Action, GameState, PlayerId, Slot } from './types.ts';
 
-export const db = new Map<string, Card>([...btr.cards, ...bd.cards, ...gcr.cards, ...gbf.cards, ...lrc.cards].map((c) => [c.id, c]));
+export const db = new Map<string, Card>(ALL_CARDS.map((c) => [c.id, c]));
 export const E = createEngine(db);
 const list = (d: { cardId: string; count: number }[]) => d.flatMap((x) => Array<string>(x.count).fill(x.cardId));
 export const DECKS: [string[], string[]] = [list(btr.deck), list(bd.deck)];
@@ -55,6 +58,8 @@ export function top(s: GameState, p: PlayerId, ids: string[]): string[] {
 export const GCR_DECK = list(gcr.deck);
 export const GBF_DECK = list(gbf.deck);
 export const LRC_DECK = list(lrc.deck);
+export const FT_DECK = list(ft.deck);
+export const CS_DECK = list(cs.deck);
 export function scene(seed = 11, decks: [string[], string[]] = DECKS): GameState {
   let s = E.newGame({ seed, decks }).state;
   s = ok(s, { type: 'mulligan', player: s.firstPlayer, discard: [] });

@@ -5,6 +5,7 @@ export * as bdW125 from './cards/bd-w125.ts';
 export * as gcrSE48 from './cards/gcr-se48.ts';
 export * as gbfS134 from './cards/gbf-s134.ts';
 export * as lrcW105 from './cards/lrc-w105.ts';
+export { ALL_CARDS, PRESETS, DUPLICATES, cardDb, type PresetDeck } from './cards/index.ts';
 export * from './game/types.ts';
 export { createEngine, type Engine, type NewGameOptions } from './game/engine.ts';
 export { viewFor, type GameView } from './game/view.ts';

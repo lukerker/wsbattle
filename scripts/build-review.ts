@@ -1,12 +1,12 @@
 // 產生「原文／中文／程式化結果」三欄對照表，供使用者核對。
-// 用法：node scripts/build-review.ts BTR-W107
+// 用法：node scripts/build-review.ts BTR-W107（補充包：GCR-SE48-BP）
 import { mkdirSync, writeFileSync } from 'node:fs';
 import type { Card } from '../packages/engine/src/card-schema.ts';
 
 const key = process.argv[2] ?? 'BTR-W107';
 const mod = await import(`../packages/engine/src/cards/${key.toLowerCase()}.ts`);
 const cards: Card[] = mod.cards;
-const deck: { cardId: string; count: number }[] = mod.deck;
+const deck: { cardId: string; count: number }[] = mod.deck ?? []; // 補充包沒有預組張數
 const source: string = mod.source ?? '讀圖'; // 日文原文的來源
 const count = new Map(deck.map((d) => [d.cardId, d.count]));
 
@@ -26,7 +26,7 @@ const rows = cards.map((c) => {
   const body = abilities.length
     ? abilities.map((a) => `<tr><td>${esc(a.text.ja)}</td><td>${esc(a.text.zh)}</td><td><pre>${esc(JSON.stringify({ ...a, text: undefined, review: undefined }, null, 1))}</pre>${a.review?.map((r) => `<p class="warn">⚠ ${esc(r)}</p>`).join('') ?? ''}</td></tr>`).join('')
     : '<tr><td colspan="3">（無效果，純數值）</td></tr>';
-  return `<section><h2>${esc(c.id)}　${esc(c.name.zh)} <small>${esc(c.name.ja)}</small> ×${count.get(c.id) ?? 0}</h2>
+  return `<section><h2>${esc(c.id)}　${esc(c.name.zh)} <small>${esc(c.name.ja)}</small>${deck.length ? ` ×${count.get(c.id) ?? 0}` : ''}</h2>
 <p>${esc(head)}${traits ? `｜特徵：${esc(traits)}` : ''}</p>
 <table><tr><th>日文原文（${source}）</th><th>繁體中文</th><th>程式化結果</th></tr>${body}</table>
 ${c.playCondition ? `<p>出牌條件：<code>${esc(JSON.stringify(c.playCondition))}</code></p>` : ''}
@@ -38,7 +38,7 @@ const html = `<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>$
 section{border-top:2px solid #ccc;margin-top:1.5rem}table{border-collapse:collapse;width:100%}
 td,th{border:1px solid #ccc;padding:6px;vertical-align:top;width:33%}pre{margin:0;white-space:pre-wrap;font-size:11px}
 .warn{color:#b45309;margin:4px 0}.note{color:#555}small{color:#888;font-weight:normal}</style>
-<h1>${key} 預組核對表</h1><p>請逐張核對：日文是否讀對、中文是否通順、程式化結果是否和原文一致。有 ⚠ 的是我不確定的地方。</p>
+<h1>${key} ${deck.length ? '預組' : '補充包'}核對表</h1><p>請逐張核對：日文是否讀對、中文是否通順、程式化結果是否和原文一致。有 ⚠ 的是我不確定的地方。</p>
 ${rows}</html>`;
 
 mkdirSync('docs/review', { recursive: true });

@@ -4,7 +4,7 @@ import type { GameState, PlayerId } from './types.ts';
 
 export type Viewer = PlayerId | 'spectator';
 
-export interface GameView extends Omit<GameState, 'rng' | 'queue' | 'cards' | 'pending' | 'standby' | 'grants' | 'nextId' | 'placedThisTurn'> {
+export interface GameView extends Omit<GameState, 'rng' | 'queue' | 'cards' | 'pending' | 'standby' | 'grants' | 'nextId' | 'placedThisTurn' | 'lastDamage'> {
   cards: Record<string, { cardId: string | null; owner: PlayerId }>;
 }
 
@@ -17,9 +17,10 @@ export function viewFor(s: GameState, viewer: Viewer, reveal: Iterable<string> =
     for (const u of pl.stock) hidden.add(u); // 能量區裏向き〔3.10.2〕
     if (viewer !== p) for (const u of pl.hand) hidden.add(u); // 對手的手牌〔3.3.2〕
   });
+  for (const list of Object.values(s.markers)) for (const m of list) if (!m.faceUp) hidden.add(m.uid); // 裏向きの標記
   for (const u of reveal) hidden.delete(u);
   const cards: GameView['cards'] = {};
   for (const [uid, c] of Object.entries(s.cards)) cards[uid] = { cardId: hidden.has(uid) ? null : c.cardId, owner: c.owner };
-  const { rng: _r, queue: _q, cards: _c, pending: _p, standby: _s, grants: _g, nextId: _n, placedThisTurn: _t, ...rest } = structuredClone(s);
+  const { rng: _r, queue: _q, cards: _c, pending: _p, standby: _s, grants: _g, nextId: _n, placedThisTurn: _t, lastDamage: _l, ...rest } = structuredClone(s);
   return { ...rest, cards };
 }

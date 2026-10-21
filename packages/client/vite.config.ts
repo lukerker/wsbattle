@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
 // 卡圖：專案根目錄 cards/ 裡的卡面圖，網址是 /card-img/<系列>/<卡號>.webp（例：/card-img/BTR/W107-T01.webp），牌背是 /card-img/back.png。
+// 檔名：預組 BTR_W107_T01(4).webp（括號是張數）、補充包 GBF_S134_001SP.webp、GCR_SE48_01GBC.webp（數字後面是稀有度，拿掉）。
 // 開發時直接從 cards/ 讀；建置時複製進輸出資料夾，跟著前端網站一起部署。cards/ 不進版本庫。
 function cardImages(): Plugin {
   const root = join(import.meta.dirname, '../../cards');
@@ -15,7 +16,7 @@ function cardImages(): Plugin {
         const p = join(dir, e.name);
         if (e.isDirectory()) walk(p);
         else {
-          const m = e.name.match(/^([A-Za-z]+)_([A-Za-z0-9]+)_(T\d+)(?:\(\d+\))?\.webp$/);
+          const m = e.name.match(/^([A-Za-z]+)_([A-Za-z0-9]+)_([A-Z]?\d+)[A-Za-z]*(?:\(\d+\))?\.webp$/);
           if (m) index.set(`${m[1]}/${m[2]}-${m[3]}.webp`, p);
         }
       }

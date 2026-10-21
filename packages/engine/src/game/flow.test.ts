@@ -1,6 +1,8 @@
 // 回合流程的整體檢查：一位玩家把整個回合跑完才換人、每回合都抽牌、先攻第 1 回合只能攻擊 1 次。
 import { describe, expect, it } from 'vitest';
-import { E, DECKS, GBF_DECK, GCR_DECK, LRC_DECK, choose, decideFirst, ok, oppTurn, order, put, scene, top, yes } from './test-utils.ts';
+import * as gbfBp from '../cards/gbf-s134-bp.ts';
+import * as gcrBp from '../cards/gcr-se48-bp.ts';
+import { E, CS_DECK, DECKS, FT_DECK, GBF_DECK, GCR_DECK, LRC_DECK, choose, decideFirst, ok, oppTurn, order, put, scene, top, yes } from './test-utils.ts';
 import type { GameState, PlayerId } from './types.ts';
 
 const ORDER = ['stand', 'draw', 'clock', 'main', 'climax', 'attack', 'encore', 'end'];
@@ -54,6 +56,33 @@ describe('回合流程', () => {
   it.each([1, 2, 3, 4, 5, 6, 7, 8])('莉可麗絲 隨機對打（種子 %i）：每個合法動作都能執行，回合流程正確', (seed) => {
     for (const decks of [[LRC_DECK, DECKS[0]], [GBF_DECK, LRC_DECK], [LRC_DECK, LRC_DECK]] as [string[], string[]][]) {
       const turns = randomGame(seed, decks);
+      expect(turns.length).toBeGreaterThan(4);
+      for (const t of turns.slice(0, -1)) expect(t.phases).toEqual(ORDER);
+    }
+  });
+
+  it.each([1, 2, 3, 4, 5, 6])('FAIRY TAIL、蠟筆小新 隨機對打（種子 %i）：每個合法動作都能執行，回合流程正確', (seed) => {
+    for (const decks of [[FT_DECK, CS_DECK], [CS_DECK, DECKS[0]], [GBF_DECK, FT_DECK]] as [string[], string[]][]) {
+      const turns = randomGame(seed, decks);
+      expect(turns.length).toBeGreaterThan(4);
+      for (const t of turns.slice(0, -1)) expect(t.phases).toEqual(ORDER);
+    }
+  });
+
+  // 補充包：每副牌從卡池裡取一段角色、事件（各 1 張），加上 8 張名場面，讓隨機對打用到盡量多的卡
+  const poolDecks = (cards: { id: string; type: string }[]) => {
+    const rest = cards.filter((c) => c.type !== 'climax').map((c) => c.id);
+    const cx = cards.filter((c) => c.type === 'climax').map((c) => c.id);
+    const out: string[][] = [];
+    for (let i = 0; i < rest.length; i += 21) out.push([...Array.from({ length: 42 }, (_, k) => rest[(i + k) % rest.length]!), ...Array.from({ length: 8 }, (_, k) => cx[(i + k) % cx.length]!)]);
+    return out;
+  };
+  it.each([1, 2, 3, 4])('補充包卡池隨機對打（種子 %i）：每個合法動作都能執行，回合流程正確', (seed) => {
+    const gcr = poolDecks(gcrBp.cards);
+    const gbf = poolDecks(gbfBp.cards);
+    for (let i = 0; i < Math.max(gcr.length, gbf.length); i++) {
+      const decks: [string[], string[]] = [gcr[i % gcr.length]!, gbf[i % gbf.length]!];
+      const turns = randomGame(seed + i * 10, decks);
       expect(turns.length).toBeGreaterThan(4);
       for (const t of turns.slice(0, -1)) expect(t.phases).toEqual(ORDER);
     }

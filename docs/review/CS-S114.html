@@ -1,0 +1,1017 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>CS-S114 核對表</title>
+<style>body{font:14px/1.6 system-ui,sans-serif;max-width:1200px;margin:2rem auto;padding:0 1rem}
+section{border-top:2px solid #ccc;margin-top:1.5rem}table{border-collapse:collapse;width:100%}
+td,th{border:1px solid #ccc;padding:6px;vertical-align:top;width:33%}pre{margin:0;white-space:pre-wrap;font-size:11px}
+.warn{color:#b45309;margin:4px 0}.note{color:#555}small{color:#888;font-weight:normal}</style>
+<h1>CS-S114 預組核對表</h1><p>請逐張核對：日文是否讀對、中文是否通順、程式化結果是否和原文一致。有 ⚠ 的是我不確定的地方。</p>
+<section><h2>CS/S114-T01　寶藏獵人 小新 <small>トレジャーハンター しんのすけ</small> ×2</h2>
+<p>紅｜角色｜Lv0｜費用0｜攻擊500｜魂傷1｜特徵：MOVIE(MOVIE)、家族(家族)、幼稚園(幼稚園)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】他のあなたの「プリンセス ひまわり」すべてに、ソウルを＋1。</td><td>【永】其他的你的「公主 小葵」全部，魂傷+1。</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifySoul",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "filter": {
+     "name": "プリンセス ひまわり",
+     "excludeSource": true
+    },
+    "count": "all"
+   },
+   "amount": 1,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr><tr><td>【自】絆／「プリンセス ひまわり」［①］（このカードがプレイされて舞台に置かれた時、あなたはコストを払ってよい。そうしたら、あなたは自分の控え室の「プリンセス ひまわり」を1枚選び、手札に戻す）</td><td>【自】絆／「公主 小葵」［①］(此卡被使用被放置到舞台時，你可以支付代價。支付代價的話，你選擇自己休息室的「公主 小葵」1張，回到手牌)</td><td><pre>{
+ "kind": "auto",
+ "keyword": {
+  "id": "bond",
+  "targetName": "プリンセス ひまわり"
+ },
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "optional": true,
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 1
+  }
+ ],
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "waitingRoom",
+    "side": "self",
+    "filter": {
+     "name": "プリンセス ひまわり"
+    },
+    "count": {
+     "exactly": 1
+    }
+   },
+   "to": {
+    "zone": "hand",
+    "side": "self"
+   }
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：專門搭配「公主 小葵」（Lv1 攻擊5500）。小新在場時，小葵魂傷+1。絆：小新從手牌登場時付1能量，從休息室撿回1張小葵。</p></section>
+<section><h2>CS/S114-T02　遭遇外星人 美冴＆小葵 <small>宇宙人との遭遇 みさえ＆ひまわり</small> ×4</h2>
+<p>紅｜角色｜Lv0｜費用0｜攻擊500｜魂傷1｜特徵：MOVIE(MOVIE)、家族(家族)、主婦(主婦)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】他のあなたの「ぷにぷに拳 しんのすけ」すべてに、パワーを＋1000。</td><td>【永】其他的你的「軟綿綿拳 小新」全部，攻擊力+1000。</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "filter": {
+     "name": "ぷにぷに拳 しんのすけ",
+     "excludeSource": true
+    },
+    "count": "all"
+   },
+   "amount": 1000,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr><tr><td>【起】集中［① このカードを【レスト】する］あなたは自分の山札の上から5枚をめくり、控え室に置く。それらのカードのCX1枚につき、あなたは1枚まで引く。</td><td>【起】集中［① 將此卡【橫置】］你從自己的牌組上方翻5張，放到休息室。那些卡片中每有1張名場面，你抽最多1張牌。</td><td><pre>{
+ "kind": "activated",
+ "keyword": {
+  "id": "concentrate"
+ },
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 1
+  },
+  {
+   "kind": "restSource"
+  }
+ ],
+ "effects": [
+  {
+   "op": "revealMill",
+   "n": 5,
+   "bind": "milled",
+   "result": "draw"
+  },
+  {
+   "op": "drawCards",
+   "n": {
+    "countOfBound": "milled",
+    "filter": {
+     "type": "climax"
+    }
+   }
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：「軟綿綿拳 小新」全部+1000。集中：付1能量並把她橫置，翻5張進休息室，每翻到1張名場面就抽1張。放後列使用。</p></section>
+<section><h2>CS/S114-T03　前往夢見世界！ 小新 <small>いざユメミーワールドへ！ しんのすけ</small> ×2</h2>
+<p>紅｜角色｜Lv0｜費用0｜攻擊1000｜魂傷1｜特徵：MOVIE(MOVIE)、家族(家族)、幼稚園(幼稚園)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】［手札を1枚控え室に置く］このカードが手札から舞台に置かれた時、あなたはコストを払ってよい。そうしたら、あなたは自分の山札の上から1枚を公開し、自分の控え室のレベルＸ以下のキャラを1枚選び、手札に戻す。Ｘは公開されたカードのレベルに等しい。（CXのレベルは0として扱う。公開したカードは元に戻す）</td><td>【自】［手牌1張放到休息室］此卡從手牌被放置到舞台時，你可以支付代價。支付代價的話，你將自己的牌組上方1張公開，選擇自己休息室的等級X以下的角色1張，回到手牌。X等於公開的卡片的等級。(名場面視為等級0。公開的卡片放回原位)</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "optional": true,
+ "cost": [
+  {
+   "kind": "discard",
+   "selector": {
+    "zone": "hand",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "revealTopLevelRecover"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：登場時丟1張手牌：翻開牌組最上面1張看等級（看完放回），再從休息室撿回1張等級不超過它的角色。</p></section>
+<section><h2>CS/S114-T04　公主 小葵 <small>プリンセス ひまわり</small> ×4</h2>
+<p>紅｜角色｜Lv1｜費用0｜攻擊5500｜魂傷1｜特徵：MOVIE(MOVIE)、家族(家族)、寶石(宝石)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td colspan="3">（無效果，純數值）</td></tr></table>
+
+<p class="note">白話：沒有效果，但是Lv1、費用0就有5500。搭配「寶藏獵人 小新」魂傷+1。</p></section>
+<section><h2>CS/S114-T05　Get You成功 廣志 <small>ゲッチュー成功 ひろし</small> ×4</h2>
+<p>紅｜角色｜Lv2｜費用1｜攻擊4500｜魂傷1｜判定：soul｜特徵：MOVIE(MOVIE)、家族(家族)、上班族(サラリーマン)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードがアタックした時、あなたは自分の、《MOVIE》か《家族》のキャラを1枚選び、そのターン中、パワーを＋6000。</td><td>【自】此卡攻擊時，你選擇自己的《MOVIE》或《家族》的角色1張，在那個回合中，攻擊力+6000。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "attacks"
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "filter": {
+     "anyOf": [
+      {
+       "type": "character",
+       "trait": "MOVIE"
+      },
+      {
+       "type": "character",
+       "trait": "家族"
+      }
+     ]
+    },
+    "count": {
+     "exactly": 1
+    }
+   },
+   "amount": 6000,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：攻擊時選1張《MOVIE》或《家族》角色+6000，可以選他自己（變成10500），也可以給還沒攻擊的隊友。</p></section>
+<section><h2>CS/S114-T06　家人的羈絆 小新＆小白 <small>家族の絆 しんのすけ＆シロ</small> ×2</h2>
+<p>紅｜角色｜Lv3｜費用2｜攻擊10000｜魂傷2｜判定：soul｜特徵：MOVIE(MOVIE)、家族(家族)、幼稚園(幼稚園)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードが手札から舞台に置かれた時、あなたは自分のクロックの上から1枚を、控え室に置いてよい。</td><td>【自】此卡從手牌被放置到舞台時，你可以將自己的傷害區上方1張，放到休息室。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "optional": true,
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "clock",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    },
+    "position": "top"
+   },
+   "to": {
+    "zone": "waitingRoom",
+    "side": "self"
+   }
+  }
+ ]
+}</pre></td></tr><tr><td>【自】【CXコンボ】［① 手札を1枚控え室に置く］このカードがアタックした時、CX置場に「おかえり しんのすけ！シロ！」があり、他のあなたの、《MOVIE》か《家族》のキャラが2枚以上なら、あなたはコストを払ってよい。そうしたら、相手に3ダメージを与える。（ダメージキャンセルは発生する）</td><td>【自】【CX連動】［① 手牌1張放到休息室］此卡攻擊時，名場面區有「歡迎回家 小新！小白！」，其他的你的《MOVIE》或《家族》的角色存在2張以上的話，你可以支付代價。支付代價的話，給對手3點傷害。(會發生傷害取消)</td><td><pre>{
+ "kind": "auto",
+ "keyword": {
+  "id": "cxCombo",
+  "climaxName": "おかえり しんのすけ！シロ！"
+ },
+ "trigger": {
+  "event": "attacks"
+ },
+ "optional": true,
+ "condition": {
+  "kind": "all",
+  "of": [
+   {
+    "kind": "climaxInZone",
+    "name": "おかえり しんのすけ！シロ！"
+   },
+   {
+    "kind": "countAtLeast",
+    "selector": {
+     "zone": "stage",
+     "side": "self",
+     "filter": {
+      "anyOf": [
+       {
+        "type": "character",
+        "trait": "MOVIE"
+       },
+       {
+        "type": "character",
+        "trait": "家族"
+       }
+      ],
+      "excludeSource": true
+     },
+     "count": "all"
+    },
+    "n": 2
+   }
+  ]
+ },
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 1
+  },
+  {
+   "kind": "discard",
+   "selector": {
+    "zone": "hand",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "dealDamage",
+   "amount": 3,
+   "cancelable": true
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：登場時回1血。連動名場面「歡迎回家 小新！小白！」：場上有其他2張以上《MOVIE》或《家族》角色時，攻擊時付1能量並丟1張，先給對手3點傷害（可能被取消），再進行攻擊。</p></section>
+<section><h2>CS/S114-T07　英雄VS高衩魔王 <small>ヒーローVSハイグレ魔王</small> ×2</h2>
+<p>紅｜事件｜Lv2｜費用1</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>あなたは自分の控え室のキャラを2枚まで選び、手札に戻し、自分の手札を1枚選び、控え室に置く。</td><td>你選擇自己休息室的角色最多2張，回到手牌，選擇自己的手牌1張，放到休息室。</td><td><pre>{
+ "kind": "event",
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "waitingRoom",
+    "side": "self",
+    "filter": {
+     "type": "character"
+    },
+    "count": {
+     "upTo": 2
+    }
+   },
+   "to": {
+    "zone": "hand",
+    "side": "self"
+   }
+  },
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "hand",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    }
+   },
+   "to": {
+    "zone": "waitingRoom",
+    "side": "self"
+   }
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：從休息室撿回最多2張角色，再丟1張手牌。等於手牌+1，還能換成想要的角色。</p></section>
+<section><h2>CS/S114-T08　歡迎回家 小新！小白！ <small>おかえり しんのすけ！シロ！</small> ×2</h2>
+<p>紅｜名場面｜判定：comeback</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】あなたのキャラすべてに、パワーを＋1000し、ソウルを＋1。（【カムバック】：このカードがトリガーした時、あなたは自分の控え室のキャラを1枚選び、手札に戻してよい）</td><td>【永】你的角色全部，攻擊力+1000，魂傷+1。(木門：當你判定出此卡時，你可以選擇自己休息室的1張角色，回到手牌)</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 1000,
+   "duration": "whileActive"
+  },
+  {
+   "op": "modifySoul",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 1,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：在名場面階段從手牌打出，效果持續到這回合結束：全部角色攻擊力+1000、魂傷+1。連動：「家人的羈絆 小新＆小白」（Lv3）。判定翻到這張時：可以從休息室撿回1張角色。</p></section>
+<section><h2>CS/S114-T09　母親的愛 <small>母の愛情</small> ×2</h2>
+<p>紅｜名場面｜判定：soul+soul</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードが手札からCX置場に置かれた時、あなたは自分の控え室のトリガーアイコンに【ソウル】があるキャラを1枚まで選び、手札に戻し、自分のキャラを2枚まで選び、そのターン中、ソウルを＋1。</td><td>【自】此卡從手牌被放置到名場面區時，你選擇自己休息室的判定標誌有魂傷的角色最多1張，回到手牌，選擇自己的角色最多2張，在那個回合中，魂傷+1。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedToClimaxZone"
+ },
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "waitingRoom",
+    "side": "self",
+    "filter": {
+     "type": "character",
+     "hasTrigger": "soul"
+    },
+    "count": {
+     "upTo": 1
+    }
+   },
+   "to": {
+    "zone": "hand",
+    "side": "self"
+   }
+  },
+  {
+   "op": "modifySoul",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": {
+     "upTo": 2
+    }
+   },
+   "amount": 1,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：打出時：從休息室撿回1張判定標誌有魂傷的角色（通常是Lv2、Lv3），再選2張角色這回合魂傷+1。這張沒有+1000攻擊力。</p></section>
+<section><h2>CS/S114-T10　忍術修行中！ 妮妮 <small>忍術修行中！ ネネちゃん</small> ×2</h2>
+<p>藍｜角色｜Lv0｜費用0｜攻擊1000｜魂傷1｜特徵：MOVIE(MOVIE)、幼稚園(幼稚園)、人偶(人形)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードが手札から舞台に置かれた時、次の相手のターンの終わりまで、このカードのパワーを＋Ｘ。Ｘはあなたの、《MOVIE》か《幼稚園》のキャラの枚数×1000に等しい。</td><td>【自】此卡從手牌被放置到舞台時，到下次的對手回合結束前，此卡的攻擊力+X。X等於你的《MOVIE》或《幼稚園》的角色張數×1000。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": {
+    "per": {
+     "zone": "stage",
+     "side": "self",
+     "filter": {
+      "anyOf": [
+       {
+        "type": "character",
+        "trait": "MOVIE"
+       },
+       {
+        "type": "character",
+        "trait": "幼稚園"
+       }
+      ]
+     },
+     "count": "all"
+    },
+    "multiplier": 1000,
+    "evaluate": "atResolution"
+   },
+   "duration": "untilNextOpponentTurnEnd"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：登場時算場上《MOVIE》或《幼稚園》角色有幾張（含她自己），每張+1000，一直持續到對手回合結束。場上越多越強，Lv0也能有4000～6000。</p></section>
+<section><h2>CS/S114-T11　忍術修行中！ 阿呆 <small>忍術修行中！ ボーちゃん</small> ×2</h2>
+<p>藍｜角色｜Lv0｜費用0｜攻擊1500｜魂傷1｜特徵：MOVIE(MOVIE)、幼稚園(幼稚園)、謎(謎)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードが手札から舞台に置かれた時、あなたは自分の山札を上から2枚まで見て、山札の上に好きな順番で置く。</td><td>【自】此卡從手牌被放置到舞台時，你從自己的牌組上方看最多2張，以喜歡的順序放回牌組上方。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "effects": [
+  {
+   "op": "lookTopReorder",
+   "n": 2
+  }
+ ]
+}</pre><p class="warn">⚠ 「2枚まで見て」：目前固定看 2 張。</p></td></tr><tr><td>【自】［① 手札のCXを1枚控え室に置く］このカードが手札から舞台に置かれた時、あなたはコストを払ってよい。そうしたら、あなたは自分の控え室のCXを1枚選び、手札に戻す。</td><td>【自】［① 手牌的名場面1張放到休息室］此卡從手牌被放置到舞台時，你可以支付代價。支付代價的話，你選擇自己休息室的名場面1張，回到手牌。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "optional": true,
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 1
+  },
+  {
+   "kind": "discard",
+   "selector": {
+    "zone": "hand",
+    "side": "self",
+    "filter": {
+     "type": "climax"
+    },
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "waitingRoom",
+    "side": "self",
+    "filter": {
+     "type": "climax"
+    },
+    "count": {
+     "exactly": 1
+    }
+   },
+   "to": {
+    "zone": "hand",
+    "side": "self"
+   }
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：登場時看牌組上方2張排順序。另外可以付1能量、丟1張名場面，從休息室換回想要的名場面（剛丟的那張也可以選）。</p></section>
+<section><h2>CS/S114-T12　拯救世界 小新 <small>世界を救え しんのすけ</small> ×2</h2>
+<p>藍｜角色｜Lv0｜費用0｜攻擊2000｜魂傷1｜特徵：MOVIE(MOVIE)、家族(家族)、幼稚園(幼稚園)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードが手札から舞台に置かれた時、そのターン中、このカードのパワーを＋1500。</td><td>【自】此卡從手牌被放置到舞台時，在那個回合中，此卡的攻擊力+1500。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": 1500,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr><tr><td>【自】このカードのバトル相手が【リバース】した時、あなたは他の自分の、《MOVIE》か《家族》のキャラを1枚選び、【レスト】し、後列のキャラのいない枠に動かす。</td><td>【自】此卡的戰鬥對手【倒置】時，你選擇其他的自己的《MOVIE》或《家族》的角色1張，【橫置】，移動到後列的沒有角色的格子。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "battleOpponentReversed"
+ },
+ "effects": [
+  {
+   "op": "restAndMoveToBack",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "filter": {
+     "anyOf": [
+      {
+       "type": "character",
+       "trait": "MOVIE"
+      },
+      {
+       "type": "character",
+       "trait": "家族"
+      }
+     ],
+     "excludeSource": true
+    },
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：登場的回合是3500。打倒對手時，可以把另1張《MOVIE》或《家族》角色橫置撤到後列空格（後列要有空格），保護下回合會被打倒的隊友。</p></section>
+<section><h2>CS/S114-T13　忍術修行中！ 風間 <small>忍術修行中！ 風間くん</small> ×2</h2>
+<p>藍｜角色｜Lv0｜費用0｜攻擊2000｜魂傷1｜特徵：MOVIE(MOVIE)、幼稚園(幼稚園)、優等生(優等生)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】［② 手札を1枚控え室に置く］このカードが舞台から控え室に置かれた時、あなたはコストを払ってよい。そうしたら、あなたは自分の山札を上から6枚まで見て、《MOVIE》か《幼稚園》のキャラを2枚まで選んで相手に見せ、手札に加え、残りのカードを控え室に置く。</td><td>【自】［② 手牌1張放到休息室］此卡從舞台被放到休息室時，你可以支付代價。支付代價的話，你從自己的牌組上方看最多6張，選擇《MOVIE》或《幼稚園》的角色最多2張給對手確認，加到手牌，剩下的卡片放到休息室。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "sourceLeavesStageToWaitingRoom"
+ },
+ "optional": true,
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 2
+  },
+  {
+   "kind": "discard",
+   "selector": {
+    "zone": "hand",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "lookTopPick",
+   "look": 6,
+   "pick": {
+    "filter": {
+     "anyOf": [
+      {
+       "type": "character",
+       "trait": "MOVIE"
+      },
+      {
+       "type": "character",
+       "trait": "幼稚園"
+      }
+     ]
+    },
+    "upTo": 2
+   },
+   "rest": "waitingRoom"
+  }
+ ]
+}</pre><p class="warn">⚠ 「6枚まで見て」：目前固定看 6 張。</p></td></tr></table>
+
+<p class="note">白話：被打倒進休息室時（被擠掉也算），付2能量並丟1張，看6張拿最多2張角色。等於丟1拿2。</p></section>
+<section><h2>CS/S114-T14　拯救世界 肥嘟嘟左衛門 <small>世界を救え ぶりぶりざえもん</small> ×2</h2>
+<p>藍｜角色｜Lv1｜費用0｜攻擊500｜魂傷1｜特徵：MOVIE(MOVIE)、動物(動物)、暗黑英雄(ダークヒーロー)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】［① 手札を1枚控え室に置く］このカードが手札から舞台に置かれた時、あなたはコストを払ってよい。そうしたら、あなたは自分の山札を上から5枚まで見て、カードを1枚まで選び、手札に加え、残りのカードを控え室に置く。</td><td>【自】［① 手牌1張放到休息室］此卡從手牌被放置到舞台時，你可以支付代價。支付代價的話，你從自己的牌組上方看最多5張，選擇卡片最多1張，加到手牌，剩下的卡片放到休息室。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "optional": true,
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 1
+  },
+  {
+   "kind": "discard",
+   "selector": {
+    "zone": "hand",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "lookTopPick",
+   "look": 5,
+   "pick": {
+    "filter": {},
+    "upTo": 1
+   },
+   "rest": "waitingRoom",
+   "secret": true
+  }
+ ]
+}</pre><p class="warn">⚠ 「5枚まで見て」：目前固定看 5 張。卡面沒寫「相手に見せ」，所以拿的卡不公開。</p></td></tr><tr><td>【自】このカードが【リバース】した時、あなたは自分の山札の上から1枚を公開する。そのカードのレベルが2以上なら、あなたはこのカードをストック置場に置いてよい。（CXのレベルは0として扱う。公開したカードは元に戻す）</td><td>【自】此卡【倒置】時，你將自己的牌組上方1張公開。那張卡片的等級在2以上的話，你可以將此卡放到能量區。(名場面視為等級0。公開的卡片放回原位)</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "reversedInBattle"
+ },
+ "effects": [
+  {
+   "op": "revealTopCheck",
+   "filter": {
+    "levelAtLeast": 2
+   },
+   "matchTo": "deckTop",
+   "ifMatch": [
+    {
+     "op": "may",
+     "prompt": "要把這張角色放到能量區嗎",
+     "then": [
+      {
+       "op": "moveCards",
+       "from": {
+        "zone": "stage",
+        "side": "self",
+        "count": {
+         "exactly": 1
+        },
+        "relation": "source"
+       },
+       "to": {
+        "zone": "stock",
+        "side": "self"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：攻擊力只有500，是用來找牌的。登場時付1能量丟1張，看5張拿1張想要的卡（什麼卡都可以）。被打倒時翻牌組最上面1張：Lv2以上就能把他放進能量區。</p></section>
+<section><h2>CS/S114-T15　軟綿綿拳 小新 <small>ぷにぷに拳 しんのすけ</small> ×4</h2>
+<p>藍｜角色｜Lv1｜費用0｜攻擊4500｜魂傷1｜特徵：MOVIE(MOVIE)、家族(家族)、幼稚園(幼稚園)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードが手札から舞台に置かれた時、そのターン中、このカードのパワーを＋Ｘ。Ｘはあなたの、《MOVIE》か《家族》のキャラの枚数×500に等しい。</td><td>【自】此卡從手牌被放置到舞台時，在那個回合中，此卡的攻擊力+X。X等於你的《MOVIE》或《家族》的角色張數×500。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": {
+    "per": {
+     "zone": "stage",
+     "side": "self",
+     "filter": {
+      "anyOf": [
+       {
+        "type": "character",
+        "trait": "MOVIE"
+       },
+       {
+        "type": "character",
+        "trait": "家族"
+       }
+      ]
+     },
+     "count": "all"
+    },
+    "multiplier": 500,
+    "evaluate": "atResolution"
+   },
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr><tr><td>【自】【CXコンボ】このカードがアタックした時、CX置場に「アイヤータウンを守れ！」があり、他のあなたの、《MOVIE》か《家族》のキャラがいるなら、あなたは自分のキャラを1枚選び、そのターン中、次の能力を与える。『【自】このカードのバトル相手が【リバース】した時、あなたは自分の山札を見て《MOVIE》か《家族》のキャラを1枚まで選んで相手に見せ、手札に加え、その山札をシャッフルする。』</td><td>【自】【CX連動】此卡攻擊時，名場面區有「守護阿依亞鎮！」，有其他的你的《MOVIE》或《家族》的角色存在的話，你選擇自己的角色1張，在那個回合中，給予以下能力。『【自】此卡的戰鬥對手【倒置】時，你從自己的牌組選擇《MOVIE》或《家族》的角色最多1張給對手確認，加到手牌，將那個牌組洗牌。』</td><td><pre>{
+ "kind": "auto",
+ "keyword": {
+  "id": "cxCombo",
+  "climaxName": "アイヤータウンを守れ！"
+ },
+ "trigger": {
+  "event": "attacks"
+ },
+ "condition": {
+  "kind": "all",
+  "of": [
+   {
+    "kind": "climaxInZone",
+    "name": "アイヤータウンを守れ！"
+   },
+   {
+    "kind": "countAtLeast",
+    "selector": {
+     "zone": "stage",
+     "side": "self",
+     "filter": {
+      "anyOf": [
+       {
+        "type": "character",
+        "trait": "MOVIE"
+       },
+       {
+        "type": "character",
+        "trait": "家族"
+       }
+      ],
+      "excludeSource": true
+     },
+     "count": "all"
+    },
+    "n": 1
+   }
+  ]
+ },
+ "effects": [
+  {
+   "op": "grantAbility",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    }
+   },
+   "duration": "thisTurn",
+   "ability": {
+    "kind": "auto",
+    "trigger": {
+     "event": "battleOpponentReversed"
+    },
+    "effects": [
+     {
+      "op": "searchDeck",
+      "filter": {
+       "anyOf": [
+        {
+         "type": "character",
+         "trait": "MOVIE"
+        },
+        {
+         "type": "character",
+         "trait": "家族"
+        }
+       ]
+      },
+      "upTo": 1,
+      "reveal": true,
+      "shuffle": true
+     }
+    ],
+    "text": {
+     "ja": "【自】このカードのバトル相手が【リバース】した時、あなたは自分の山札を見て《MOVIE》か《家族》のキャラを1枚まで選んで相手に見せ、手札に加え、その山札をシャッフルする。",
+     "zh": "【自】此卡的戰鬥對手【倒置】時，你從自己的牌組選擇《MOVIE》或《家族》的角色最多1張給對手確認，加到手牌，將那個牌組洗牌。"
+    }
+   }
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：登場時算場上《MOVIE》或《家族》角色有幾張（含他自己），每張+500。連動名場面「守護阿依亞鎮！」：攻擊時選1張角色（通常選他自己），這回合它打倒對手就能從牌組找1張角色。後列放「遭遇外星人 美冴＆小葵」還能再+1000。</p></section>
+<section><h2>CS/S114-T16　忍術修行中！ 正男 <small>忍術修行中！ マサオくん</small> ×2</h2>
+<p>藍｜角色｜Lv1｜費用1｜攻擊500｜魂傷1｜判定：soul｜特徵：MOVIE(MOVIE)、幼稚園(幼稚園)、愛哭鬼(泣き虫)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】あなたがこのカードの『助太刀』を使った時、あなたは自分の山札を上から1枚見て、山札の上か控え室に置く。</td><td>【自】當你使用此卡的『助太刀』時，你看自己的牌組上方1張，放到牌組上方或休息室。</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "usedBackup"
+ },
+ "effects": [
+  {
+   "op": "lookTopPlace",
+   "dest": "waitingRoom"
+  }
+ ]
+}</pre></td></tr><tr><td>【起】【カウンター】助太刀2000 レベル1［① 手札のこのカードを控え室に置く］（あなたは自分のフロントアタックされているキャラを1枚選び、そのターン中、パワーを＋2000）</td><td>【起】【反擊】助太刀2000 等級1［① 手牌的此卡放到休息室］(你選擇自己的正在被正打的角色1張，在那個回合中，攻擊力+2000)</td><td><pre>{
+ "kind": "activated",
+ "keyword": {
+  "id": "backup",
+  "power": 2000,
+  "level": 1
+ },
+ "timing": "counter",
+ "cost": [
+  {
+   "kind": "stock",
+   "n": 1
+  },
+  {
+   "kind": "discardSource"
+  }
+ ],
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": {
+     "exactly": 1
+    },
+    "relation": "inBattleWithSource"
+   },
+   "amount": 2000,
+   "duration": "thisTurn"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：防守卡：對手正打你的角色時，付1能量從手牌丟出，被打的角色+2000。使用時還能看牌組最上面1張，不要的（例如名場面要留給對手的傷害判定時）可以丟進休息室。</p></section>
+<section><h2>CS/S114-T17　忍術修行中！ 小新 <small>忍術修行中！ しんのすけ</small> ×2</h2>
+<p>藍｜角色｜Lv2｜費用1｜攻擊2000｜魂傷1｜判定：soul｜特徵：MOVIE(MOVIE)、家族(家族)、幼稚園(幼稚園)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】応援 このカードの前のあなたのキャラすべてに、パワーを＋Ｘ。Ｘはそのキャラのレベル×500に等しい。</td><td>【永】應援 此卡前面的你的角色全部，攻擊力+X。X等於那張角色的等級×500。</td><td><pre>{
+ "kind": "continuous",
+ "keyword": {
+  "id": "assist"
+ },
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "frontOfSource"
+   },
+   "amount": {
+    "perLevelOfTarget": true,
+    "multiplier": 500
+   },
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr><tr><td>【起】［手札の、《MOVIE》か《家族》のキャラを2枚控え室に置き、あなたのキャラを2枚【レスト】する］あなたは自分の手札の「アクション仮面変身セット しんのすけ」を1枚まで選び、舞台の好きな枠に置く。</td><td>【起】［手牌的《MOVIE》或《家族》的角色2張放到休息室，並將你的角色2張【橫置】］你選擇自己手牌的「動感超人變身組 小新」最多1張，放到舞台上喜歡的格子。</td><td><pre>{
+ "kind": "activated",
+ "cost": [
+  {
+   "kind": "discard",
+   "selector": {
+    "zone": "hand",
+    "side": "self",
+    "filter": {
+     "anyOf": [
+      {
+       "type": "character",
+       "trait": "MOVIE"
+      },
+      {
+       "type": "character",
+       "trait": "家族"
+      }
+     ]
+    },
+    "count": {
+     "exactly": 2
+    }
+   }
+  },
+  {
+   "kind": "rest",
+   "selector": {
+    "zone": "stage",
+    "side": "self",
+    "state": "stand",
+    "count": {
+     "exactly": 2
+    }
+   }
+  }
+ ],
+ "effects": [
+  {
+   "op": "moveCards",
+   "from": {
+    "zone": "hand",
+    "side": "self",
+    "filter": {
+     "name": "アクション仮面変身セット しんのすけ"
+    },
+    "count": {
+     "upTo": 1
+    }
+   },
+   "to": {
+    "zone": "stage",
+    "side": "self",
+    "slot": "any"
+   }
+  }
+ ]
+}</pre><p class="warn">⚠ 「舞台の好きな枠に置く」：可以放到有角色的格子，原本的角色會進休息室。用這個效果放上去也算「從手牌被放置到舞台」，Lv3 小新的登場效果會發動。不用滿足等級、費用條件。</p></td></tr></table>
+
+<p class="note">白話：放後列：斜前方2格的角色加「等級×500」。【起】：丟2張《MOVIE》或《家族》角色、橫置2張自己的角色，把手牌的「動感超人變身組 小新」（Lv3）直接放上舞台，不用管等級、不用付費。</p></section>
+<section><h2>CS/S114-T18　與娜娜的互動 小新 <small>ナナとの触れ合い しんのすけ</small> ×2</h2>
+<p>藍｜角色｜Lv2｜費用1｜攻擊5000｜魂傷2｜判定：soul｜特徵：MOVIE(MOVIE)、家族(家族)、幼稚園(幼稚園)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】他のあなたの後列の、《MOVIE》か《家族》のキャラ1枚につき、このカードのパワーを＋2500。</td><td>【永】其他的你的後列的《MOVIE》或《家族》的角色每有1張，此卡的攻擊力+2500。</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all",
+    "relation": "source"
+   },
+   "amount": {
+    "per": {
+     "zone": "stage",
+     "side": "self",
+     "filter": {
+      "anyOf": [
+       {
+        "type": "character",
+        "trait": "MOVIE"
+       },
+       {
+        "type": "character",
+        "trait": "家族"
+       }
+      ],
+      "row": "back",
+      "excludeSource": true
+     },
+     "count": "all"
+    },
+    "multiplier": 2500,
+    "evaluate": "live"
+   },
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：後列兩格都是《MOVIE》或《家族》角色的話，她會變成10000，而且魂傷2。</p></section>
+<section><h2>CS/S114-T19　動感超人變身組 小新 <small>アクション仮面変身セット しんのすけ</small> ×2</h2>
+<p>藍｜角色｜Lv3｜費用2｜攻擊10000｜魂傷2｜判定：soul｜特徵：MOVIE(MOVIE)、家族(家族)、幼稚園(幼稚園)</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【自】このカードが手札から舞台に置かれた時、あなたは相手に1ダメージを与えてよい。（ダメージキャンセルは発生する）</td><td>【自】此卡從手牌被放置到舞台時，你可以給對手1點傷害。(會發生傷害取消)</td><td><pre>{
+ "kind": "auto",
+ "trigger": {
+  "event": "placedFromHandToStage"
+ },
+ "optional": true,
+ "effects": [
+  {
+   "op": "dealDamage",
+   "amount": 1,
+   "cancelable": true
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：登場時給對手1點傷害（可能被取消）。也可以用「忍術修行中！ 小新」的【起】直接放上舞台。</p></section>
+<section><h2>CS/S114-T20　守護阿依亞鎮！ <small>アイヤータウンを守れ！</small> ×4</h2>
+<p>藍｜名場面｜判定：soul+gate</p>
+<table><tr><th>日文原文（官方卡表）</th><th>繁體中文</th><th>程式化結果</th></tr><tr><td>【永】あなたのキャラすべてに、パワーを＋1000し、ソウルを＋1。（【ゲート】：このカードがトリガーした時、あなたは自分の控え室のCXを1枚選び、手札に戻してよい）</td><td>【永】你的角色全部，攻擊力+1000，魂傷+1。(門：當你判定出此卡時，你可以選擇自己休息室的1張名場面，回到手牌)</td><td><pre>{
+ "kind": "continuous",
+ "effects": [
+  {
+   "op": "modifyPower",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 1000,
+   "duration": "whileActive"
+  },
+  {
+   "op": "modifySoul",
+   "target": {
+    "zone": "stage",
+    "side": "self",
+    "count": "all"
+   },
+   "amount": 1,
+   "duration": "whileActive"
+  }
+ ]
+}</pre></td></tr></table>
+
+<p class="note">白話：在名場面階段從手牌打出，效果持續到這回合結束：全部角色攻擊力+1000、魂傷+1。連動：「軟綿綿拳 小新」（Lv1）。判定翻到這張時：魂傷+1，還可以從休息室撿回1張名場面。</p></section></html>

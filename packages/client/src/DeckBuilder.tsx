@@ -5,7 +5,7 @@ import { addProblem, deckSummary, isPlayable, mainSeries, MAX_CLIMAX, DECK_SIZE,
 import { CardImg, CardInfo, COLOR_ZH, TYPE_ZH } from './CardFace.tsx';
 import { saveDeck, type SavedDeck } from './decks.ts';
 import { TRIGGER_ZH } from './log.ts';
-import { SERIES, SERIES_CARDS, cardById, seriesInfo } from './meta.ts';
+import { RELATED, SERIES, SERIES_CARDS, cardById, seriesInfo } from './meta.ts';
 
 // ───── 篩選 ─────
 interface Filter {
@@ -119,8 +119,31 @@ function CardPool({ cards, counts, selected, onSelect, onAdd }: { cards: Card[];
   );
 }
 
+// 相關卡片：CX 連動、絆、效果裡提到卡名的卡、同名卡；點一下切換過去
+function RelatedCards({ card, onPick }: { card: Card; onPick: (id: string) => void }) {
+  const list = RELATED.get(card.id);
+  if (!list?.length) return null;
+  return (
+    <div className="related">
+      <h5>相關卡片</h5>
+      <div className="related-list">
+        {list.map(({ card: c, label }) => (
+          <button key={c.id} type="button" className={`related-item c-${c.color}`} onClick={() => onPick(c.id)}>
+            <span className="related-img"><CardImg card={c} /></span>
+            <span className="related-txt">
+              <i>{label}</i>
+              <b>{c.name.zh}</b>
+              <small>{c.id}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // 卡片說明面板：寬螢幕在左側，窄螢幕改成彈窗
-function InfoPanel({ card, count, onAdd, onRemove, onClose }: { card: Card | null; count?: number; onAdd?: () => void; onRemove?: () => void; onClose: () => void }) {
+function InfoPanel({ card, count, onAdd, onRemove, onClose, onPick }: { card: Card | null; count?: number; onAdd?: () => void; onRemove?: () => void; onClose: () => void; onPick: (id: string) => void }) {
   if (!card) return <aside className="info-side"><p className="muted">點一下卡片查看大圖與效果說明。</p></aside>;
   const body = (
     <>
@@ -134,7 +157,10 @@ function InfoPanel({ card, count, onAdd, onRemove, onClose }: { card: Card | nul
         </div>
       )}
       </div>
-      <div className="info-stack"><CardInfo card={card} /></div>
+      <div className="info-stack">
+        <CardInfo card={card} />
+        <RelatedCards card={card} onPick={onPick} />
+      </div>
     </>
   );
   return (
@@ -175,7 +201,7 @@ export function SeriesBrowser({ series, onBack }: { series: string; onBack: () =
         <SeriesTabs value={cur} onChange={(s) => { setCur(s); setSel(null); }} />
       </header>
       <div className="bld-body">
-        <InfoPanel card={sel ? cardById.get(sel)! : null} onClose={() => setSel(null)} />
+        <InfoPanel card={sel ? cardById.get(sel)! : null} onClose={() => setSel(null)} onPick={setSel} />
         <CardPool cards={cards} selected={sel} onSelect={setSel} />
       </div>
     </div>
@@ -250,7 +276,7 @@ export function DeckBuilder({ deck, series, onClose }: { deck: SavedDeck | null;
         <button className="btn primary" disabled={busy || !dirty || !!sum.invalid} onClick={() => void save()}>{busy ? '儲存中…' : dirty ? '儲存' : '已儲存'}</button>
       </header>
       <div className="bld-body has-deck">
-        <InfoPanel card={sel ? cardById.get(sel)! : null} count={sel ? counts.get(sel) ?? 0 : 0} onAdd={sel ? () => add(sel) : undefined} onRemove={sel ? () => remove(sel) : undefined} onClose={() => setSel(null)} />
+        <InfoPanel card={sel ? cardById.get(sel)! : null} count={sel ? counts.get(sel) ?? 0 : 0} onAdd={sel ? () => add(sel) : undefined} onRemove={sel ? () => remove(sel) : undefined} onClose={() => setSel(null)} onPick={setSel} />
         <CardPool cards={SERIES_CARDS.get(pool) ?? []} counts={counts} selected={sel} onSelect={setSel} onAdd={add} />
         <aside className="deck-side">
           <div className={`deck-sum${sum.notReady ? '' : ' ok'}`}>

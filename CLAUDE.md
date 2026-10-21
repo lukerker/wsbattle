@@ -37,7 +37,8 @@
 ## 7 個系列
 
 BanG Dream（MyGO × Ave Mujica 彈）、Girls Band Cry、莉可麗絲、鏈鋸人、孤獨搖滾、NIKKE、碧藍幻想。
-每個系列都做到預組加補充包全卡。建議第一個做莉可麗絲（資料最齊全，待使用者確認）。
+每個系列都做到預組加補充包全卡。另外加了 FAIRY TAIL 魔導少年（FT/S09）、蠟筆小新 電影版（CS/S114），目前只有預組。
+進度：Girls Band Cry、碧藍幻想的補充包已完成（`gcr-se48-bp.ts`、`gbf-s134-bp.ts`，待使用者核對）。
 
 ## 技術架構
 
@@ -70,14 +71,16 @@ BanG Dream（MyGO × Ave Mujica 彈）、Girls Band Cry、莉可麗絲、鏈鋸�
 
 ## 卡片製作流程
 
-1. 使用者提供日文卡面圖片，放在 `cards/<系列>/`
-2. 讀出日文效果，翻成繁體中文，並寫成效果資料
+1. 使用者提供日文卡面圖片，放在 `cards/<系列>/`（補充包檔名例 `GBF_S134_001SP.webp`，數字後面的稀有度會被忽略）
+2. 用 `node scripts/fetch-cards.ts <系列-編號> <卡號範圍>` 從官方卡表抓日文到 `data/cards/`，翻成繁體中文，並寫成效果資料。卡片檔的卡名、數值、特徵、日文原文要和官方一字不差（`cards/official.test.ts` 會逐張比對）
 3. 原文、中文、程式化結果三欄並排，由使用者核對（日文圖片是讀字，偶爾會誤讀）
 4. 寫情境測試，確認效果和原文一致
 5. 通過的卡才進卡池；卡片標記翻譯、程式化、測試的進度，未完成的卡在組牌器灰掉
 
 補充：
-- 同一張卡的不同稀有度只是不同的圖，效果相同，用同一個基礎編號處理
+- 同一張卡的不同稀有度只是不同的圖，效果相同，用同一個基礎編號處理；不同卡號但完全相同的卡（PR、再錄）只收錄原本的卡號，寫在卡片檔的 `duplicates`
+- 同名但效果不同的卡（例 GBF 093、096「時竜 オロロジャイア」）都收錄；「和「X」合計4枚まで」寫成 `sameNameAs`，構築規則會合計
+- 卡片說明面板下方列出相關卡片（CX 連動、絆、效果提到的卡名、同名卡），由 `client/src/meta.ts` 的 `RELATED` 自動算
 - 構築規則〔5.1.2〕：50 張整、同名卡最多 4 張、名場面合計最多 8 張；預組是固定 50 張
 - 預組牌表存成資料檔，欄位：系列代碼、預組編號、卡號、張數、備註；各卡張數由使用者提供
 - 預組各卡張數寫在卡圖檔名的括號裡（例 `LRC_W105_T02(4).webp`）；莉可麗絲預組 LRC/W105：T02、T04、T10、T11、T13 各 4 張，其餘 15 種各 2 張
@@ -117,5 +120,7 @@ packages/client
 - `npm run typecheck`：型別檢查（engine）
 - 部署前端：`npm run build --workspace @ws/client` 後 `npx firebase-tools deploy --only hosting`；改了 Firestore 規則加上 `npx firebase-tools deploy --only firestore:rules`（要在有 `cards/` 的這台電腦做）；伺服器：`git push` 到 main，Render 自動部署
 - `powershell -ExecutionPolicy Bypass -File scripts/prepare-images.ps1`：把系統先攻／後攻卡和各系列 `*_VS.jpg` 縮成網頁用的圖（`cards/_web/`），新增 VS 圖後要跑一次再部署前端
-- `node scripts/build-review.ts BTR-W107`：產生 `docs/review/` 的三欄核對表
+- `node scripts/build-review.ts BTR-W107`：產生 `docs/review/` 的三欄核對表（補充包：`GCR-SE48-BP`）
+- `node scripts/fetch-cards.ts GBF-S134 001-132 P01 P02EX`：抓官方卡表的日文與數值到 `data/cards/GBF-S134.json`（範圍照位數補零，稀有度字尾會拿掉）
+- 新增系列：卡片檔放 `packages/engine/src/cards/`，在 `cards/index.ts` 登記（伺服器、畫面、測試都從那裡拿）；`client/src/meta.ts` 的 `SERIES` 加名稱與主題色；VS 圖檔名開頭不是卡號代碼的，要在 `scripts/prepare-images.ps1` 的 `$code` 對照
 - PowerShell 5.1 的 `Set-Content/Add-Content -Encoding utf8` 會加 BOM，寫 JSON 檔要用 Write 工具或 .NET UTF8Encoding(false)

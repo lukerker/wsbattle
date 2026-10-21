@@ -561,6 +561,7 @@ function pendingHint(p: Pending): string {
     case 'chooseSlot': return p.prompt;
     case 'orderAbility': return p.canSkip ? '有多個效果可以發動：選擇先處理哪一個（選了之後還能決定要不要發動），或都不發動。' : '有多個效果同時發動：選擇先解決哪一個。';
     case 'acknowledge': return p.prompt;
+    case 'chooseOption': return p.prompt;
   }
 }
 
@@ -712,6 +713,17 @@ function PromptSheet({ pending: p, view, seat, act, name, secondsLeft, fresh, po
           {p.owner !== undefined && p.owner !== player ? '對手的' : ''}{SLOT_NAME[slot]}
         </button>
       ));
+      break;
+    case 'chooseOption':
+      body = (
+        <div className="order-list">
+          {p.options.map((label, i) => (
+            <button key={i} className="order-item" onClick={() => act({ type: 'choose', player, uids: [String(i)] })}>
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+      );
       break;
     case 'orderAbility':
       body = (

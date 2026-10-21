@@ -9,6 +9,26 @@ export const MAX_CLIMAX = 8;
 // 卡片效果已寫好並通過測試，才能放進牌組
 export const isPlayable = (c: Card) => c.status.coded && c.status.tested;
 
+// 「同名」的判定：卡名相同，或卡片寫明「和「X」合計最多 4 張」（sameNameAs）的算同一組
+const groups = new WeakMap<ReadonlyMap<string, Card>, Map<string, string>>();
+export function nameKey(db: ReadonlyMap<string, Card>, c: Card): string {
+  let g = groups.get(db);
+  if (!g) {
+    g = new Map();
+    const root = (n: string): string => (g!.get(n) && g!.get(n) !== n ? root(g!.get(n)!) : n);
+    for (const x of db.values()) {
+      for (const alias of x.sameNameAs ?? []) {
+        const [a, b] = [root(x.name.ja), root(alias)].sort();
+        if (a !== b) g.set(b!, a!);
+        if (!g.has(a!)) g.set(a!, a!);
+      }
+    }
+    for (const n of [...g.keys()]) g.set(n, root(n));
+    groups.set(db, g);
+  }
+  return g.get(c.name.ja) ?? c.name.ja;
+}
+
 export interface DeckSummary {
   total: number;
   climax: number;
@@ -29,7 +49,8 @@ export function deckSummary(db: ReadonlyMap<string, Card>, cards: readonly strin
       continue;
     }
     if (!isPlayable(c)) incomplete++;
-    byName.set(c.name.ja, (byName.get(c.name.ja) ?? 0) + 1);
+    const key = nameKey(db, c);
+    byName.set(key, (byName.get(key) ?? 0) + 1);
     if (c.type === 'climax') climax++;
   }
   if (cards.length > DECK_SIZE) invalid ??= `牌組最多 ${DECK_SIZE} 張，現在有 ${cards.length} 張`;
@@ -45,7 +66,8 @@ export function addProblem(db: ReadonlyMap<string, Card>, cards: readonly string
   if (!c) return '找不到這張卡';
   if (!isPlayable(c)) return '這張卡的效果還沒完成，暫時不能放進牌組';
   if (cards.length >= DECK_SIZE) return `牌組已經 ${DECK_SIZE} 張了`;
-  const same = cards.filter((x) => db.get(x)?.name.ja === c.name.ja).length;
+  const key = nameKey(db, c);
+  const same = cards.filter((x) => db.get(x) && nameKey(db, db.get(x)!) === key).length;
   if (same >= MAX_SAME_NAME) return `同名的卡最多 ${MAX_SAME_NAME} 張`;
   if (c.type === 'climax' && cards.filter((x) => db.get(x)?.type === 'climax').length >= MAX_CLIMAX) return `名場面最多 ${MAX_CLIMAX} 張`;
   return null;
