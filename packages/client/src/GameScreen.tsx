@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEven
 import type { Action, AttackMode, Card, ClientState, GameEvent, GameView, Pending, PlayerId, RoomInfo, Slot } from '@ws/engine';
 import { applyStep, groupEvents, originsOf, playAttack, useFlip } from './anim.ts';
 import { Board, type ZoneMode } from './Board.tsx';
-import { Abilities, BACK_URL, CardFace, CardImg, CardInfo, PowerTag, cardMeta } from './CardFace.tsx';
+import { Abilities, BACK_URL, CardFace, CardImg, CardInfo, PowerTag, cardImg, cardMeta } from './CardFace.tsx';
 import { PHASES, SLOT_NAME, cardById, seriesInfo } from './meta.ts';
 import { buildLog, type LogEntry } from './log.ts';
 import { DEFAULT_TURN_CARDS, loadTurnCards, type TurnCards } from './turnCards.ts';
@@ -888,7 +888,7 @@ function VsIntro({ left, right }: { left: VsSide; right: VsSide }) {
   const side = (s: VsSide, cls: 'l' | 'r') => (
     <div className={`vs-side ${cls}`} style={{ ['--pc' as string]: s.accent }}>
       <div className="vs-art">
-        <img src={`/card-img/vs/${s.series}.jpg`} alt="" draggable={false} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+        <img src={cardImg(`vs/${s.series}.jpg`)} alt="" draggable={false} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
       </div>
       <div className="vs-name">
         <b>{s.name}</b>

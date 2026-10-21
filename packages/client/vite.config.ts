@@ -55,4 +55,9 @@ function cardImages(): Plugin {
   };
 }
 
-export default defineConfig({ plugins: [react(), cardImages()], server: { host: true, port: 5173 } });
+// 卡圖網址加上每次建置不同的版本號：部署後所有裝置都會重新抓圖（避免舊的快取，例如卡圖補上前快取到的錯誤內容）
+export default defineConfig({
+  plugins: [react(), cardImages()],
+  define: { __ASSET_VER__: JSON.stringify(Date.now().toString(36)) },
+  server: { host: true, port: 5173 },
+});

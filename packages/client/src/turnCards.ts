@@ -1,12 +1,13 @@
 // 先攻／後攻卡面：玩家可以在「我的牌組」上傳自己的圖；開房的玩家的卡會用在那間房間的先後攻翻牌。
 // 有 Firebase 時存在 Firestore 的 turnCards/<uid>（登入的人都能讀，只有本人能寫）；測試登入時存在這台電腦的瀏覽器。
+import { cardImg } from './CardFace.tsx';
 import { FIREBASE } from './config.ts';
 
 export interface TurnCards {
   first: string; // 圖片網址（上傳的是 data URL）
   last: string;
 }
-export const DEFAULT_TURN_CARDS: TurnCards = { first: '/card-img/system/first.jpg', last: '/card-img/system/last.jpg' };
+export const DEFAULT_TURN_CARDS: TurnCards = { first: cardImg('system/first.jpg'), last: cardImg('system/last.jpg') };
 
 const local = (uid: string) => FIREBASE === null || uid.startsWith('dev:');
 const localKey = (uid: string) => `ws-turn-cards:${uid}`;
