@@ -154,6 +154,25 @@ describe('FAIRY TAIL FT/S09', () => {
     expect([E.soul(s, a), E.soul(s, b), E.power(s, a)]).toEqual([2, 2, 3000]);
   });
 
+  it('對戰紀錄：自動選定的加成、牌組放到能量區都會寫出來（火龍的咆哮、露西只有自己是《鑰匙》）', () => {
+    let s = sc();
+    put(s, 0, C('T09'), { slot: 0 });
+    redLevels(s, 1);
+    const cx = put(s, 0, C('T14'), 'hand');
+    s = passUntil(s, 'climax');
+    let r = E.apply(s, { type: 'playClimax', player: 0, uid: cx });
+    expect(r.events.some((e) => e.t === 'log' && e.text === '「火龍的咆哮」：牌組上方 1 張放到能量區')).toBe(true);
+
+    s = sc();
+    const lucy = put(s, 0, C('T02'), { slot: 1 });
+    const a = put(s, 0, C('T09'), { slot: 3 });
+    const b = put(s, 0, C('T09'), { slot: 4 });
+    s = ok(s, { type: 'activate', player: 0, uid: lucy, index: 0 });
+    r = E.apply(s, { type: 'choose', player: 0, uids: [a, b] });
+    expect(r.events.some((e) => e.t === 'log' && e.text === '「露西·哈特菲利亞」：「露西·哈特菲利亞」這回合攻擊力+2000')).toBe(true);
+    expect(E.power(r.state, lucy)).toBe(4000);
+  });
+
   it('101 星靈魔導士 露西：其他《魔法》+500；付①選 1 張角色 +1500', () => {
     let s = sc();
     const lucy = put(s, 0, C('101'), { slot: 3 });

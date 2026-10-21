@@ -697,7 +697,7 @@ function PromptSheet({ pending: p, view, seat, act, name, secondsLeft, fresh, po
       break;
     case 'yesno':
     case 'confirm': {
-      const text = p.kind === 'confirm' ? p.prompt : { treasureStock: '寶：要把牌組最上面 1 張放進能量區嗎？', pool: '要把牌組最上面 1 張放進能量區嗎？', draw: '要抽 1 張牌嗎？' }[p.reason];
+      const text = p.kind === 'confirm' ? p.prompt : { treasureStock: '判定翻到金條：那張名場面已回到手牌。要再把牌組最上面 1 張放進能量區嗎？', pool: '判定翻到錢袋：要把牌組最上面 1 張放進能量區嗎？', draw: '判定翻到書本：要抽 1 張牌嗎？' }[p.reason];
       body = <p className="prompt-text">{text}</p>;
       buttons = (
         <>

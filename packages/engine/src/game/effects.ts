@@ -779,13 +779,17 @@ export function createEffects(core: Core) {
       case 'modifyPower':
       case 'modifySoul': {
         if (e.duration === 'whileActive') return 'done'; // 【永】在計算時處理
-        const picked = pick(ctx, f, e.target, '選擇角色');
+        const what = e.op === 'modifyPower' ? '攻擊力' : '魂傷';
+        const shown = typeof e.amount === 'number' ? `${what}${e.amount >= 0 ? '+' : ''}${e.amount}` : `${what}增減`;
+        const picked = pick(ctx, f, e.target, `選擇角色（${shown}）`);
         if (!picked) return 'wait';
         const until = e.duration === 'untilNextOpponentTurnEnd' ? nextOppTurn(s, f.controller) : undefined;
         for (const u of picked) {
           if (!onStage(s, u)) continue;
           const n = e.op === 'modifyPower' ? amountOf(s, e.amount, f.src, f.controller, f.binds, u, f.ctx) : e.amount;
           s.mods.push({ uid: u, power: e.op === 'modifyPower' ? n : 0, soul: e.op === 'modifySoul' ? n : 0, ...(until ? { until } : {}) });
+          // 自動選定（只有 1 個對象）時畫面不會問，所以一律寫進對戰紀錄
+          ctx.ev.push({ t: 'log', p: f.controller, text: `「${f.label}」：「${cardOf(s, u).name.zh}」${until ? '到對手回合結束' : '這回合'}${what}${n >= 0 ? '+' : ''}${n}` });
         }
         return 'done';
       }
@@ -804,6 +808,8 @@ export function createEffects(core: Core) {
           if (e.bind) f.binds[e.bind] = [uid];
           return 'done';
         }
+        const fromDeck = picked.filter((u) => locate(s, u)?.zone === 'deck').length;
+        if (to === 'stock' && fromDeck) ctx.ev.push({ t: 'log', p: f.controller, text: `「${f.label}」：牌組上方 ${fromDeck} 張放到能量區` });
         for (const u of picked) {
           if (to === 'hand' && locate(s, u)?.zone === 'deck') ctx.ev.push({ t: 'reveal', uid: u, cardId: s.cards[u]!.cardId });
           const p = e.to.side ? (e.to.side === 'self' ? f.controller : other(f.controller)) : s.cards[u]!.owner;
