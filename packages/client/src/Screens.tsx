@@ -5,6 +5,7 @@ import { CardFace, CardInfo } from './CardFace.tsx';
 import { DeckBuilder, SeriesBrowser } from './DeckBuilder.tsx';
 import { deckSeries, deleteDeck, saveDeck, useMyDecks, type SavedDeck } from './decks.ts';
 import { PRESET_DECKS, SERIES, SERIES_CARDS, cardById, seriesInfo, type DeckInfo } from './meta.ts';
+import { SoundControl } from './SoundControl.tsx';
 import { net, useNet } from './net.ts';
 import { DEFAULT_TURN_CARDS, fileToCardImage, loadTurnCards, saveTurnCard, type TurnCards } from './turnCards.ts';
 
@@ -357,6 +358,7 @@ export function LobbyScreen({ name, onDecks, onLogout, onRename }: { name: strin
           ) : (
             <button className="btn ghost" onClick={() => { setDraft(name); setEditing(true); }} title="修改名稱">{name} ✎</button>
           )}
+          <SoundControl />
           <button className="btn ghost" onClick={onLogout}>登出</button>
         </div>
       </header>

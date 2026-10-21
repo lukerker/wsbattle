@@ -10,5 +10,6 @@ export * from './game/types.ts';
 export { createEngine, type Engine, type NewGameOptions } from './game/engine.ts';
 export { viewFor, type GameView } from './game/view.ts';
 export * from './session/protocol.ts';
+export type { GameStats, PlayerStats } from './session/stats.ts';
 export { GameRoom, validateDeck, seriesOf, type User } from './session/room.ts';
 export { RoomManager, type Conn, type ManagerOptions } from './session/manager.ts';

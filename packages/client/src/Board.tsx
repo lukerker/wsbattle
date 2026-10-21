@@ -144,7 +144,7 @@ function Half({ view, p, mine, power, soul, selected, glow, dropTargets, dragOve
       {s.resolution.length > 0 && (
         <div className="zone z-resolution" data-zone={`resolution-${p}`} style={place(Z.resolution, mine)}>
           {s.resolution.map((id, i) => (
-            <CardImg key={id} uid={id} card={card(id)} style={{ top: u(i * 0.2), zIndex: i }} />
+            <CardImg key={id} uid={id} card={card(id)} style={{ top: u(i * 0.2), zIndex: i }} onClick={() => onCard(id, p)} />
           ))}
         </div>
       )}

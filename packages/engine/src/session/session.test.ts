@@ -365,6 +365,13 @@ describe('整局連線對打（隨機合法動作）', () => {
     expect(s.state!.view.winner).toBe(room.game!.winner);
     expect(a.room!.status).toBe('ended');
     expect(room.record!.actions.length).toBeGreaterThan(50);
+    // 結算統計：雙方與觀戰者看到同一份；有結束原因、輸的一方真的被打進傷害區
+    const st = s.state!.stats!;
+    expect(st).toEqual(a.state!.stats);
+    expect(['level', 'deck']).toContain(st.reason);
+    const loser = (1 - (room.game!.winner as number)) as 0 | 1;
+    expect(st.players[(1 - loser) as 0 | 1].damageDealt).toBeGreaterThan(0);
+    expect(st.players[0].attacks + st.players[1].attacks).toBeGreaterThan(0);
     void b;
   });
 });
@@ -393,6 +400,7 @@ describe('斷線與離開', () => {
     const { m: m2, a: a2, b: b2 } = await startGame();
     await send(m2, a2, { t: 'leave' });
     expect(b2.state!.view.winner).toBe(1);
+    expect(b2.state!.stats!.reason).toBe('concede');
     expect(b2.room!.status).toBe('ended');
   });
 

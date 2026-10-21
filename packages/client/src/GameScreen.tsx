@@ -1,12 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import type { Action, AttackMode, Card, ClientState, GameEvent, GameView, Pending, PlayerId, RoomInfo, Slot } from '@ws/engine';
-import { applyStep, groupEvents, originsOf, playAttack, useFlip } from './anim.ts';
+import type { Action, AttackMode, Card, ClientState, GameEvent, GameStats, GameView, Pending, PlayerId, RoomInfo, Slot } from '@ws/engine';
+import { SHOWCASE_MS, applyStep, groupEvents, originsOf, playAttack, playShuffle, useFlip, type Origin } from './anim.ts';
 import { Board, type ZoneMode } from './Board.tsx';
 import { Abilities, BACK_URL, CardFace, CardImg, CardInfo, PowerTag, cardImg, cardMeta } from './CardFace.tsx';
 import { PHASES, SLOT_NAME, cardById, seriesInfo } from './meta.ts';
 import { buildLog, type LogEntry } from './log.ts';
 import { DEFAULT_TURN_CARDS, loadTurnCards, type TurnCards } from './turnCards.ts';
 import { net, useNet } from './net.ts';
+import { play } from './sound.ts';
+import { SoundControl } from './SoundControl.tsx';
 
 // 連線對戰畫面：永遠用自己的座位視角；觀戰者看座位 0 的視角，只看得到公開資訊。
 // 伺服器每次回傳新狀態與事件列表，這裡照事件一步一步播動畫，播完才讓玩家繼續操作。
@@ -15,7 +17,8 @@ type Source = { from: 'hand'; uid: string } | { from: 'stage'; slot: number; uid
 type ZoneView = { title: string; ids: string[]; mode: ZoneMode } | null;
 type Drag = { src: Source; x: number; y: number; over: string | null } | null;
 type FirstDecided = { first: PlayerId; firstCard: 0 | 1; picks: [0 | 1, 0 | 1] };
-type Anim = { display: GameView; banner: PlayerId | null; firstDecided: FirstDecided | null };
+type Showcase = { uid: string; cardId: string; p: PlayerId };
+type Anim = { display: GameView; banner: PlayerId | null; firstDecided: FirstDecided | null; showcase: Showcase | null };
 
 const DRAG_THRESHOLD = 8;
 const dropTargetAt = (x: number, y: number) =>
@@ -37,7 +40,7 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
   const [log, setLog] = useState<LogEntry[]>([]);
   const [logOpen, setLogOpen] = useState(false); // 窄螢幕：對戰紀錄用彈窗看
   const rootRef = useRef<HTMLDivElement>(null);
-  const origins = useRef(new Map<string, { key: string; flip: boolean }>());
+  const origins = useRef(new Map<string, Origin>());
   const csRef = useRef<ClientState | null>(null);
   const queue = useRef<{ state: ClientState; events: GameEvent[]; at: number }[]>([]);
   const running = useRef(false);
@@ -92,10 +95,14 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
             display = applyStep(display, step.events, known);
             const entries = buildLog(step.events, state.view);
             if (entries.length) setLog((l) => [...l, ...entries].slice(-80));
-            for (const [uid, o] of originsOf(step.events)) origins.current.set(uid, o);
-            setAnim({ display, banner: step.turnStart ?? null, firstDecided: step.firstDecided ?? null });
+            for (const [uid, o] of originsOf(step.events, known)) origins.current.set(uid, o);
+            setAnim({ display, banner: step.turnStart ?? null, firstDecided: step.firstDecided ?? null, showcase: step.showcase ?? null });
             const atk = step.attack;
             if (atk) window.requestAnimationFrame(() => rootRef.current && playAttack(rootRef.current, atk.uid, display.turnPlayer, atk.slot, atk.mode));
+            const sh = step.shuffle;
+            if (sh) window.requestAnimationFrame(() => rootRef.current && playShuffle(rootRef.current, sh.p, sh.refresh));
+            if (step.sound) play(step.sound);
+            if (step.turnStart !== undefined && step.turnStart === state.viewer) play('turn'); // 輪到自己：叮～
             if (step.ms) await sleep(step.ms);
           }
           setAnim(null);
@@ -137,6 +144,27 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
     setBusy(false);
     net.clearError();
   }, [error]);
+
+  // 盤面每次改變：卡片從舊位置滑到新位置（從牌組翻開的卡會翻面）
+  const shownView = anim?.display ?? cs?.view ?? null;
+  useFlip(rootRef, shownView, origins, `${panelOpen}`);
+
+  // 階段列：目前的階段一直保持在中間（小螢幕放不下全部階段時才看得到）
+  const phasesRef = useRef<HTMLOListElement>(null);
+  useLayoutEffect(() => {
+    const ol = phasesRef.current;
+    const li = ol?.querySelector<HTMLElement>('li.on');
+    if (!ol || !li) return;
+    ol.scrollTo({ left: li.offsetLeft - (ol.clientWidth - li.offsetWidth) / 2, behavior: 'smooth' });
+  }, [shownView?.phase]);
+
+  // 需要自己回應（反擊、確認、對手回合中要做選擇）：叮叮～
+  const promptKey = !anim && cs?.mine && isPrompt(cs.mine) ? JSON.stringify(cs.mine) : null;
+  useEffect(() => {
+    if (!promptKey || !cs?.mine || cs.viewer === 'spectator') return;
+    const k = cs.mine.kind;
+    if (['counter', 'acknowledge', 'confirm', 'yesno', 'levelUp'].includes(k) || cs.view.turnPlayer !== cs.viewer) play('alert');
+  }, [promptKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!cs) return <div className="app"><div className="center-note">正在載入牌局…</div></div>;
 
@@ -300,7 +328,7 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
             <b>{nm(seat)}</b>（{seriesName(seat)}）<i>vs</i>{nm(opp)}（{seriesName(opp)}）
           </span>
         </div>
-        <ol className="phases" aria-label="階段列">
+        <ol className="phases" aria-label="階段列" ref={phasesRef}>
           {PHASES.map((p, i) => {
             const cur = PHASES.findIndex((x) => x.id === view.phase);
             return <li key={p.id} className={i === cur ? 'on' : i < cur ? 'done' : ''}>{p.name}</li>;
@@ -317,6 +345,7 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
         {!anim && passAction() && (
           <button className="btn primary top-pass" onClick={() => act(passAction()!)}>{passLabel[mine!.kind]}</button>
         )}
+        <SoundControl compact />
         <button className="btn ghost log-btn" onClick={() => setLogOpen(true)}>紀錄</button>
         <button className="btn ghost leave-btn" onClick={onLeaveClick}>{spectating ? '離開觀戰' : '離開'}</button>
       </header>
@@ -461,13 +490,23 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
         </div>
       )}
 
+      {anim?.showcase && (
+        <ShowcaseCard key={anim.showcase.uid} show={anim.showcase} root={rootRef} card={cardById.get(anim.showcase.cardId) ?? null} accent={accentOf(anim.showcase.p)} />
+      )}
+
       {!anim && view.winner !== null && (
-        <div className="handoff">
-          <div className="handoff-box" style={{ ['--accent' as string]: accentOf(view.winner === 'draw' ? seat : view.winner) }}>
-            <p className="who">{wonText}</p>
-            <button className="btn primary" onClick={leave}>回到大廳</button>
-          </div>
-        </div>
+        <GameOver
+          winner={view.winner}
+          seat={seat}
+          spectating={spectating}
+          view={view}
+          stats={cs.stats}
+          log={log}
+          name={nm}
+          accent={accentOf}
+          title={wonText}
+          onLeave={leave}
+        />
       )}
 
       {drag && dragCard && (
@@ -909,3 +948,187 @@ function VsIntro({ left, right }: { left: VsSide; right: VsSide }) {
   );
 }
 type VsSide = { name: string; series: string; label: string; accent: string };
+
+// 出牌展示：卡片從出牌玩家的手牌翻開、放大到畫面中間（和先後攻的卡一樣大）停一下，再縮小貼到場上的位置
+function ShowcaseCard({ show, root, card, accent }: { show: Showcase; root: React.RefObject<HTMLElement | null>; card: Card | null; accent: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const r = root.current;
+    if (!el || !r) return;
+    const target = r.querySelector<HTMLElement>(`[data-uid="${show.uid}"]`);
+    target?.getAnimations({ subtree: true }).forEach((x) => x.finish()); // 場上那張卡藏起來，不用滑過去；量位置前先停在終點
+    const inner = target?.querySelector<HTMLElement>('.cimg-in') ?? target;
+    const box = el.getBoundingClientRect();
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height / 2;
+    const from = r.querySelector<HTMLElement>(`[data-zone="hand-${show.p}"]`)?.getBoundingClientRect();
+    const fdx = from ? from.left + from.width / 2 - cx : 0;
+    const fdy = from ? from.top + from.height / 2 - cy : box.height;
+    const fs = from ? Math.min(0.5, Math.max(0.12, (from.height * 0.9) / box.height)) : 0.3;
+    // 目的地：場上那張卡（橫放的名場面：外框是橫的，卡片轉 -90 度）
+    const land = !!target?.classList.contains('land');
+    const t = inner?.getBoundingClientRect();
+    const tdx = t ? t.left + t.width / 2 - cx : 0;
+    const tdy = t ? t.top + t.height / 2 - cy : 0;
+    const ts = t ? (land ? t.height : t.width) / box.width : 0.3;
+    const rot = land ? -90 : 0;
+    const hide = [target, target?.parentElement?.querySelector<HTMLElement>('.ptag')].filter((x): x is HTMLElement => !!x); // 卡和攻擊力標籤等貼上去才出現
+    hide.forEach((x) => (x.style.visibility = 'hidden'));
+    const done = () => hide.forEach((x) => (x.style.visibility = ''));
+    const tf = (x: number, y: number, s: number, ry: number, rz: number) => `translate(${x}px, ${y}px) scale(${s}) rotateY(${ry}deg) rotate(${rz}deg)`;
+    const a = el.animate(
+      [
+        { transform: tf(fdx, fdy, fs, 180, 0), opacity: 0, offset: 0, easing: 'cubic-bezier(.2,.75,.25,1)' },
+        { transform: tf(fdx * 0.8, fdy * 0.8, fs * 1.4, 160, 0), opacity: 1, offset: 0.05, easing: 'cubic-bezier(.2,.75,.25,1)' },
+        { transform: tf(0, 0, 1.05, 0, 0), opacity: 1, offset: 0.3 },
+        { transform: tf(0, 0, 1, 0, 0), opacity: 1, offset: 0.36 },
+        { transform: tf(0, 0, 1, 0, 0), opacity: 1, offset: 0.72, easing: 'cubic-bezier(.55,0,.35,1)' },
+        { transform: tf(tdx, tdy, ts, 0, rot), opacity: 1, offset: 1 },
+      ],
+      { duration: SHOWCASE_MS - 60, fill: 'forwards' },
+    );
+    a.onfinish = () => {
+      done();
+      play('land');
+      el.style.opacity = '0';
+    };
+    return () => {
+      a.cancel();
+      done();
+    };
+  }, [show, root]);
+  return (
+    <div className="showcase" aria-hidden="true" style={{ ['--pc' as string]: accent }}>
+      <div className="sc-card" ref={ref}>
+        <img className="sc-back" src={BACK_URL} alt="" draggable={false} />
+        <div className="sc-face">{card ? <CardImg card={card} /> : <img src={BACK_URL} alt="" />}</div>
+      </div>
+    </div>
+  );
+}
+
+// 遊戲結束：先停在最後的場面，打出勝負橫幅；接著出現結算（可以收起來看最後的場地）
+function GameOver({ winner, seat, spectating, view, stats, log, name, accent, title, onLeave }: {
+  winner: PlayerId | 'draw'; seat: PlayerId; spectating: boolean; view: GameView; stats: GameStats | null; log: LogEntry[];
+  name: (p: PlayerId) => string; accent: (p: PlayerId) => string; title: string; onLeave: () => void;
+}) {
+  const [stage, setStage] = useState<'banner' | 'result' | 'board'>('banner');
+  const won = winner !== 'draw' && !spectating && winner === seat;
+  const lost = winner !== 'draw' && !spectating && winner !== seat;
+  useEffect(() => {
+    play(lost ? 'lose' : 'win');
+    const t = window.setTimeout(() => setStage((s) => (s === 'banner' ? 'result' : s)), 2800);
+    return () => window.clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const opp = (1 - seat) as PlayerId;
+  const who = (p: PlayerId) => (!spectating && p === seat ? '你' : name(p));
+  const loser = winner === 'draw' ? null : ((1 - winner) as PlayerId);
+  const reason = !stats?.reason ? '' : loser === null ? '雙方同時達到敗北條件'
+    : stats.reason === 'level' ? `${who(loser)}的等級到達 4`
+    : stats.reason === 'deck' ? `${who(loser)}的牌組和休息室都用完了`
+    : `${who(loser)}投降（離開對戰）`;
+  const big = winner === 'draw' ? '平手' : spectating ? `${name(winner)} 獲勝` : won ? '勝利' : '敗北';
+  const color = accent(winner === 'draw' ? seat : winner);
+
+  const time = (ms: number) => {
+    const m = Math.floor(ms / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return m >= 60 ? `${Math.floor(m / 60)} 小時 ${m % 60} 分` : `${m} 分 ${s} 秒`;
+  };
+  type Row = [string, (p: PlayerId) => number | string, boolean?]; // 第三欄：數字比大小，大的標亮
+  const rows: Row[] = stats ? [
+    ['最終等級・傷害', (p) => `Lv ${view.players[p].level.length}・${view.players[p].clock.length}/7`],
+    ['造成傷害', (p) => stats.players[p].damageDealt, true],
+    ['單次最大傷害', (p) => stats.players[p].maxHit, true],
+    ['取消傷害', (p) => stats.players[p].cancels, true],
+    ['攻擊次數', (p) => stats.players[p].attacks, true],
+    ['登場角色', (p) => stats.players[p].characters, true],
+    ['打出名場面', (p) => stats.players[p].climaxes, true],
+    ['判定觸發', (p) => stats.players[p].triggers, true],
+    ['發動效果', (p) => stats.players[p].abilities, true],
+    ['重洗次數', (p) => stats.players[p].refreshes],
+  ] : [];
+  // 最後的攻防：最後 10 行紀錄（含回合分隔），看得出是怎麼結束的
+  const finale = log.filter((e) => e.text !== '遊戲結束').slice(-10);
+
+  return (
+    <>
+      {stage === 'banner' && (
+        <div className={`go-banner${lost ? ' lost' : ''}`} style={{ ['--pc' as string]: color }}>
+          <div className="go-strip">
+            <b>{big}</b>
+            {reason && <span>{reason}</span>}
+          </div>
+        </div>
+      )}
+      {stage === 'board' && (
+        <div className="go-bar" style={{ ['--pc' as string]: color }}>
+          <b>遊戲結束・{title}</b>
+          <button className="btn primary" onClick={() => setStage('result')}>查看結算</button>
+          <button className="btn" onClick={onLeave}>回到大廳</button>
+        </div>
+      )}
+      {stage === 'result' && (
+        <div className="modal go-modal">
+          <div className={`dialog go-result${lost ? ' lost' : ''}`} style={{ ['--pc' as string]: color }}>
+            <header className="go-head">
+              <b>{big}</b>
+              {reason && <span>{reason}</span>}
+            </header>
+            {stats && (
+              <div className="go-meta">
+                <div><small>遊玩時間</small><b>{time(stats.elapsedMs)}</b></div>
+                <div><small>回合數</small><b>{view.turn}</b></div>
+                <div><small>先攻</small><b>{who(view.firstPlayer)}</b></div>
+              </div>
+            )}
+            {rows.length > 0 && (
+              <table className="go-table">
+                <thead>
+                  <tr>
+                    <th />
+                    {([seat, opp] as PlayerId[]).map((p) => (
+                      <th key={p} style={{ ['--pc' as string]: accent(p) }}>{name(p)}{!spectating && p === seat ? '（你）' : ''}{winner === p ? ' 👑' : ''}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(([label, get, cmp]) => {
+                    const a = get(seat);
+                    const b = get(opp);
+                    return (
+                      <tr key={label}>
+                        <td>{label}</td>
+                        <td className={cmp && a > b ? 'hi' : ''}>{a}</td>
+                        <td className={cmp && b > a ? 'hi' : ''}>{b}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+            {finale.length > 0 && (
+              <div className="go-finale">
+                <b>最後的攻防</b>
+                <ol>
+                  {finale.map((e) => (
+                    <li key={e.id} className={e.turn ? 'turn' : ''} style={e.p !== null ? { ['--pc' as string]: accent(e.p) } : undefined}>
+                      {e.p !== null && !e.turn && <span className="who">{who(e.p)}</span>}
+                      {e.turn && e.p !== null ? `${name(e.p)}・${e.text}` : e.text}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            <div className="actions">
+              <button className="btn" onClick={() => setStage('board')}>查看最後的場地</button>
+              <button className="btn primary" onClick={onLeave}>回到大廳</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

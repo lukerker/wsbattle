@@ -1,6 +1,7 @@
 // 伺服器與前端之間的訊息格式（JSON，經 WebSocket 傳送）。
 import type { GameEvent, PlayerId, Pending, Action } from '../game/types.ts';
 import type { GameView, Viewer } from '../game/view.ts';
+import type { GameStats } from './stats.ts';
 
 export type { Viewer } from '../game/view.ts';
 
@@ -40,6 +41,7 @@ export interface ClientState {
   problems: Record<string, string | null>; // 你手牌裡每張卡現在打不出去的原因；null＝可以打
   abilityText: Record<string, string>; // 你舞台上起動能力的文字，key＝「卡片:第幾個能力」
   timerMs: number | null; // 目前的待決選擇還剩幾毫秒會自動結束（反擊、給對手確認）；沒有限時是 null
+  stats: GameStats | null; // 結算畫面用的統計（遊玩時間、攻擊次數、造成傷害…）
 }
 
 export type ClientMsg =

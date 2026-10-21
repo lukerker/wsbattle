@@ -4,7 +4,7 @@
 import type { Card } from '../card-schema.ts';
 import { DEFAULT_ENCORE, createEffects, type Core, type Ctx, type MoveOpts } from './effects.ts';
 import { nextRandom, shuffleInPlace } from './rng.ts';
-import { FRONT, RESPONSE_SECONDS, type Action, type ApplyResult, type AttackMode, type GameState, type GameZone, type Pending, type PlayerId, type PlayerState, type Slot, type Step } from './types.ts';
+import { FRONT, RESPONSE_SECONDS, type Action, type ApplyResult, type AttackMode, type GameOverReason, type GameState, type GameZone, type Pending, type PlayerId, type PlayerState, type Slot, type Step } from './types.ts';
 
 const HAND_LIMIT = 7; // 〔3.3.3.1〕
 const MAX_STEPS = 10000; // 結算次數上限，防止無窮迴圈
@@ -132,7 +132,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
       refreshIfNeeded(ctx, p);
       if (pl.deck.length === 0) {
         // 牌組與休息室都空、解決領域沒有名場面 → 立刻敗北〔9.2.2.1〕
-        lose(ctx, p);
+        lose(ctx, p, 'deck');
         return 'lose';
       }
       const uid = pl.deck[0]!;
@@ -151,29 +151,30 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     return 'clock';
   }
 
-  function lose(ctx: Ctx, p: PlayerId) {
+  function lose(ctx: Ctx, p: PlayerId, reason: GameOverReason) {
     ctx.s.winner = other(p);
     ctx.s.phase = 'gameOver';
     ctx.s.pending = null;
-    ctx.ev.push({ t: 'gameOver', winner: ctx.s.winner });
+    ctx.ev.push({ t: 'gameOver', winner: ctx.s.winner, reason });
   }
 
   // ── 檢查型規則處理〔9.4～9.6〕──
   function ruleCheck(ctx: Ctx) {
     const { s } = ctx;
     if (s.winner !== null) return;
-    const losers = ([0, 1] as PlayerId[]).filter((p) => {
+    const reasonOf = (p: PlayerId): GameOverReason | null => {
       const pl = s.players[p];
-      return pl.level.length >= 4 || (pl.deck.length === 0 && pl.waiting.length === 0);
-    });
+      return pl.level.length >= 4 ? 'level' : pl.deck.length === 0 && pl.waiting.length === 0 ? 'deck' : null;
+    };
+    const losers = ([0, 1] as PlayerId[]).filter((p) => reasonOf(p));
     if (losers.length === 2) {
       s.winner = 'draw';
       s.phase = 'gameOver';
       s.pending = null;
-      ctx.ev.push({ t: 'gameOver', winner: 'draw' });
+      ctx.ev.push({ t: 'gameOver', winner: 'draw', reason: reasonOf(0)! });
       return;
     }
-    if (losers.length === 1) return lose(ctx, losers[0]!);
+    if (losers.length === 1) return lose(ctx, losers[0]!, reasonOf(losers[0]!)!);
     for (const p of [s.turnPlayer, other(s.turnPlayer)]) {
       const pl = s.players[p];
       pl.stage.forEach((c, i) => {
@@ -831,7 +832,7 @@ export function createEngine(db: ReadonlyMap<string, Card>) {
     const s = structuredClone(state);
     const ctx: Ctx = { s, ev: [] };
     if (action.type === 'concede') {
-      lose(ctx, action.player); // 投降〔1.2.4〕
+      lose(ctx, action.player, 'concede'); // 投降〔1.2.4〕
       return { state: s, events: ctx.ev };
     }
     const pend = s.pending;

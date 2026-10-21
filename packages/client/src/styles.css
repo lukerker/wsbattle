@@ -46,7 +46,7 @@ button { font: inherit; color: inherit; }
 .vs { font-size: 13px; color: var(--muted); }
 .vs i { font-style: normal; margin: 0 6px; opacity: 0.6; }
 .phases {
-  display: flex; gap: 2px; list-style: none; margin: 0 auto; padding: 3px; border-radius: 10px;
+  position: relative; display: flex; gap: 2px; list-style: none; margin: 0 auto; padding: 3px; border-radius: 10px;
   background: #0b0e14; border: 1px solid var(--line); overflow-x: auto; scrollbar-width: none;
 }
 .phases li { padding: 5px 11px; border-radius: 7px; font-size: 13px; color: var(--muted); white-space: nowrap; transition: background 0.2s, color 0.2s; }
@@ -887,3 +887,90 @@ p.small { margin: 0; font-size: 13px; }
 .sp-slot.on { transform: translateY(-4px); }
 .sp-slot.off { opacity: 0.4; }
 @media (max-height: 520px) { .sp-side { --u: 46px; padding: 6px 8px; } .stage-pick { flex-direction: row; } }
+
+/* 解決領域的卡可以點來看效果（例如判定翻到的名場面） */
+.z-resolution .cimg { cursor: pointer; }
+
+/* ───── 從牌組翻開：先轉到側面的牌背 ───── */
+.flip-back { position: fixed; z-index: 30; pointer-events: none; object-fit: cover; border-radius: 4px; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5); }
+
+/* ───── 洗牌 ───── */
+.shuffle-fx { position: fixed; z-index: 30; pointer-events: none; }
+.shuffle-fx img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 5px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); }
+.shuffle-fx span {
+  position: absolute; left: 50%; top: -26px; transform: translateX(-50%); white-space: nowrap; padding: 2px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 800; color: #fff; background: rgba(10, 13, 18, 0.85); border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* ───── 出牌展示：放大翻開再貼到場上 ───── */
+.showcase { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; pointer-events: none; perspective: 1400px; }
+.showcase::before {
+  content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 60% at 50% 50%, color-mix(in srgb, var(--pc) 22%, rgba(5, 7, 10, 0.55)), rgba(5, 7, 10, 0.35));
+  animation: sc-dim 2s ease both;
+}
+@keyframes sc-dim { 0% { opacity: 0; } 18%, 68% { opacity: 1; } 90%, 100% { opacity: 0; } }
+.sc-card { --w: clamp(130px, min(24vw, 38vh), 260px); position: relative; width: var(--w); aspect-ratio: 5 / 7; transform-style: preserve-3d; will-change: transform; }
+.sc-card > img, .sc-face { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 14px; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.sc-card > img { object-fit: cover; transform: rotateY(180deg); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.65); }
+.sc-face { box-shadow: 0 0 0 2px color-mix(in srgb, var(--pc) 70%, #fff), 0 0 50px color-mix(in srgb, var(--pc) 55%, transparent), 0 24px 60px rgba(0, 0, 0, 0.7); overflow: hidden; }
+.sc-face .cimg { --u: calc(var(--w) / 1); cursor: default; }
+.sc-face .cimg-in { border-radius: 14px; box-shadow: none; }
+.sc-face > img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ───── 遊戲結束 ───── */
+.go-banner { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; pointer-events: none; background: rgba(5, 7, 10, 0.35); animation: fp-in 0.4s ease-out both; }
+.go-strip {
+  width: 100%; padding: 22px 0 18px; display: flex; flex-direction: column; align-items: center; gap: 6px; color: #fff;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--pc) 85%, #000) 16%, color-mix(in srgb, var(--pc) 85%, #000) 84%, transparent);
+  box-shadow: 0 0 80px color-mix(in srgb, var(--pc) 45%, transparent);
+  animation: go-strip 0.7s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+.go-banner.lost .go-strip { background: linear-gradient(90deg, transparent, #2b2f3a 16%, #2b2f3a 84%, transparent); box-shadow: 0 0 60px rgba(0, 0, 0, 0.6); }
+@keyframes go-strip { from { transform: scaleY(0); opacity: 0; } to { transform: none; opacity: 1; } }
+.go-strip b { font-size: clamp(36px, 7vw, 72px); font-weight: 900; letter-spacing: 0.3em; text-indent: 0.3em; text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6); animation: fp-pop 0.6s 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.4) both; }
+.go-strip span { font-size: clamp(14px, 1.8vw, 18px); font-weight: 700; opacity: 0.92; animation: fp-in 0.5s 0.7s both; }
+.go-modal { z-index: 60; background: rgba(5, 7, 10, 0.55); }
+.go-result { width: min(560px, 94vw); border-top: 4px solid var(--pc); animation: fp-pop 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.go-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.go-head b { font-size: 30px; font-weight: 900; letter-spacing: 0.1em; color: var(--pc); }
+.go-result.lost .go-head b { color: #c4cad6; }
+.go-head span { color: var(--muted); font-size: 14px; }
+.go-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.go-meta div { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); }
+.go-meta small { font-size: 11px; color: var(--muted); }
+.go-meta b { font-size: 16px; }
+.go-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px; }
+.go-table th { text-align: center; padding: 6px 8px; font-size: 13px; color: var(--pc); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.go-table td { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: center; font-variant-numeric: tabular-nums; }
+.go-table td:first-child { text-align: left; color: var(--muted); white-space: nowrap; }
+.go-table td.hi { color: #fff; font-weight: 800; }
+.go-finale { margin-bottom: 6px; }
+.go-finale > b { display: block; font-size: 13px; margin-bottom: 6px; }
+.go-finale ol { list-style: none; margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: #c4cad6; }
+.go-finale li.turn { color: var(--pc); font-weight: 700; }
+.go-finale .who { color: var(--pc); font-weight: 700; margin-right: 6px; }
+.go-result .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+.go-bar {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 45; display: flex; align-items: center; gap: 10px; white-space: nowrap;
+  padding: 8px 10px 8px 16px; border-radius: 12px; background: rgba(15, 19, 26, 0.94); border: 1px solid var(--line); border-left: 4px solid var(--pc);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+.go-bar b { font-size: 14px; margin-right: 4px; }
+@media (max-height: 520px) {
+  .go-result { padding: 12px 14px; }
+  .go-head b { font-size: 22px; }
+  .go-table td, .go-table th { padding: 3px 6px; }
+  .go-finale ol { max-height: 90px; overflow: auto; }
+  .go-bar { bottom: 8px; padding: 5px 8px 5px 12px; }
+}
+
+/* ───── 音效設定 ───── */
+.sound-ctl { position: relative; flex: none; }
+.sound-pop {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 80; display: flex; flex-direction: column; gap: 10px; width: 220px; padding: 12px 14px;
+  border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+.sound-row { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.sound-row input[type="range"] { flex: 1; accent-color: var(--accent, #e0587f); }
+.sound-row b { width: 28px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sound-pop .btn { align-self: flex-start; }

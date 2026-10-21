@@ -5,6 +5,7 @@ import { createEngine, type Engine } from '../game/engine.ts';
 import type { Action, GameEvent, GameState, PlayerId, Pending } from '../game/types.ts';
 import { viewFor } from '../game/view.ts';
 import type { ClientState, RoomConfig, RoomInfo, SeatInfo, Viewer } from './protocol.ts';
+import { StatsTracker } from './stats.ts';
 
 export interface User {
   id: string;
@@ -45,6 +46,7 @@ export class GameRoom {
   record: { seed: number; decks: [string[], string[]]; actions: Action[] } | null = null;
   hostId: string | null = null; // 房主：開房的人；房主在開局前離開就換成另一位玩家
   deadline: number | null = null; // 目前的待決選擇自動結束的時間（反擊、給對手確認）
+  stats: StatsTracker | null = null; // 結算畫面用的統計
   private readonly engine: Engine;
   private readonly db: ReadonlyMap<string, Card>;
 
@@ -116,6 +118,8 @@ export class GameRoom {
     const r = this.engine.newGame({ seed, decks: [a.deck, b.deck] });
     this.game = r.state;
     this.record = { seed, decks: [a.deck, b.deck], actions: [] };
+    this.stats = new StatsTracker();
+    this.stats.add(r.events, r.state);
     this.status = 'playing';
     this.touch();
     return { events: r.events };
@@ -153,6 +157,7 @@ export class GameRoom {
       const r = this.engine.apply(this.game, { type: 'concede', player: v });
       this.game = r.state;
       this.record?.actions.push({ type: 'concede', player: v });
+      this.stats?.add(r.events, r.state);
       this.status = 'ended';
       return { events: r.events };
     }
@@ -185,6 +190,7 @@ export class GameRoom {
     if (r.error) return { error: r.error };
     this.game = r.state;
     this.record?.actions.push(action);
+    this.stats?.add(r.events, r.state);
     if (r.state.winner !== null) this.status = 'ended';
     this.touch();
     return { events: r.events };
@@ -258,6 +264,7 @@ export class GameRoom {
       problems,
       abilityText,
       timerMs: this.deadline !== null ? Math.max(0, this.deadline - Date.now()) : null,
+      stats: this.stats?.snapshot() ?? null,
     };
   }
 }

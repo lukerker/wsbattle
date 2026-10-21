@@ -176,6 +176,9 @@ export interface Place {
 }
 
 // 事件列表：畫面照這個播放動畫，規則和動畫完全分開
+// 遊戲結束的原因：等級到 4、牌組與休息室都用完、投降
+export type GameOverReason = 'level' | 'deck' | 'concede';
+
 export type GameEvent =
   | { t: 'move'; uid: string; cardId: string | null; from: Place; to: Place }
   | { t: 'cardState'; uid: string; state: StageCard['state'] }
@@ -187,7 +190,7 @@ export type GameEvent =
   | { t: 'damage'; p: PlayerId; n: number }
   | { t: 'damageCancel'; p: PlayerId }
   | { t: 'levelUp'; p: PlayerId; uid: string }
-  | { t: 'gameOver'; winner: PlayerId | 'draw' }
+  | { t: 'gameOver'; winner: PlayerId | 'draw'; reason: GameOverReason }
   | { t: 'ability'; uid: string; cardId: string; text: string } // 能力開始解決
   | { t: 'reveal'; uid: string; cardId: string } // 公開
   | { t: 'notice'; text: string } // 例：尚未實作的卡片效果
