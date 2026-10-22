@@ -64,4 +64,5 @@ export type ServerMsg =
   | { t: 'room'; info: RoomInfo }
   | { t: 'state'; state: ClientState; events: GameEvent[] }
   | { t: 'left' }
+  | { t: 'kicked' } // 同一個帳號在別的裝置登入：這條連線被換掉，客戶端不要再自動重連
   | { t: 'error'; message: string };

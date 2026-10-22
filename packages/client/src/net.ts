@@ -5,7 +5,7 @@ import type { Auth } from './auth.ts';
 import { SERVER_HTTP, SERVER_WS } from './config.ts';
 
 export interface NetSnapshot {
-  status: 'idle' | 'waking' | 'connecting' | 'online' | 'offline';
+  status: 'idle' | 'waking' | 'connecting' | 'online' | 'offline' | 'kicked'; // kicked：同帳號在別的裝置登入，這裡停止連線
   user: { userId: string; name: string; dev: boolean } | null;
   room: RoomInfo | null;
   peek: Extract<ServerMsg, { t: 'peeked' }> | null;
@@ -57,6 +57,11 @@ class Net {
     this.retry = 0;
     await this.wake();
     this.open();
+  }
+
+  // 被別的裝置擠掉之後，使用者按「在這裡繼續」：重新連線（換成把另一台擠掉）
+  resume() {
+    if (this.auth) void this.start(this.auth);
   }
 
   stop() {
@@ -129,6 +134,15 @@ class Net {
         sessionStorage.removeItem(ROOM_KEY);
         this.lastState = null;
         this.set({ room: null });
+        return;
+      case 'kicked':
+        // 不再自動重連，不然兩台裝置會一直互相擠掉。記住的房間代碼留著，按「在這裡繼續」時回到原本的房間
+        this.wanted = false;
+        window.clearInterval(this.pingTimer);
+        this.ws?.close();
+        this.ws = null;
+        this.lastState = null;
+        this.set({ status: 'kicked', room: null, peek: null, error: null });
         return;
       case 'peeked':
         this.set({ peek: m });

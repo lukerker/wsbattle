@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { play, setSound, useSound } from './sound.ts';
 
 // 音效設定：喇叭按鈕，點開調音量、開關音效（大廳與對戰畫面共用，設定存在這台裝置）
-export function SoundControl({ compact = false }: { compact?: boolean }) {
+export function SoundControl() {
   const { volume, muted } = useSound();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -17,8 +17,8 @@ export function SoundControl({ compact = false }: { compact?: boolean }) {
   const off = muted || volume === 0;
   return (
     <div className="sound-ctl" ref={ref}>
-      <button className="btn ghost" onClick={() => setOpen(!open)} aria-label="音效設定" title="音效設定">
-        {off ? '🔇' : volume < 0.4 ? '🔈' : '🔊'}{compact ? '' : ' 音效'}
+      <button className="sound-btn" onClick={() => setOpen(!open)} aria-label="音效設定" title="音效設定">
+        <img src={off ? '/icons/speaker_off.png' : '/icons/speaker_on.png'} alt="" draggable={false} />
       </button>
       {open && (
         <div className="sound-pop">
@@ -34,7 +34,6 @@ export function SoundControl({ compact = false }: { compact?: boolean }) {
               onPointerUp={() => play('turn')}
               onKeyUp={() => play('turn')}
             />
-            <b>{Math.round(volume * 100)}</b>
           </label>
           <button className="btn" disabled={off} onClick={() => play('alert')}>試聽</button>
         </div>

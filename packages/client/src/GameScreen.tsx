@@ -345,7 +345,7 @@ export default function GameScreen({ room }: { room: RoomInfo }) {
         {!anim && passAction() && (
           <button className="btn primary top-pass" onClick={() => act(passAction()!)}>{passLabel[mine!.kind]}</button>
         )}
-        <SoundControl compact />
+        <SoundControl />
         <button className="btn ghost log-btn" onClick={() => setLogOpen(true)}>紀錄</button>
         <button className="btn ghost leave-btn" onClick={onLeaveClick}>{spectating ? '離開觀戰' : '離開'}</button>
       </header>
@@ -619,6 +619,8 @@ function PromptSheet({ pending: p, view, seat, act, name, secondsLeft, fresh, po
 
   // shown：一起顯示但不能選的卡（看牌時翻開的其他牌）
   const ordered = p.kind === 'select' && !!p.ordered;
+  // 換牌階段：用滑鼠時指到哪張就看哪張（點一下是選要丟的牌，避免為了看效果誤按）；觸控照舊點按
+  const hoverPeek = p.kind === 'mulligan';
   const myHand = view.players[player].hand;
   const cards = (options: string[], max: number, shown?: string[]) => {
     // 選的全是舞台上的角色：照舞台的擺位顯示，同名的角色才分得出是哪一隻
@@ -631,7 +633,7 @@ function PromptSheet({ pending: p, view, seat, act, name, secondsLeft, fresh, po
           const can = options.includes(uid) && max > 0;
           const order = ordered ? picked.indexOf(uid) : -1;
           return (
-            <div key={uid} className="opt-wrap">
+            <div key={uid} className="opt-wrap" onPointerEnter={hoverPeek ? (e) => { if (e.pointerType === 'mouse') setFocus(cardOf(uid)); } : undefined}>
               <CardFace
                 card={cardOf(uid)}
                 selected={picked.includes(uid)}

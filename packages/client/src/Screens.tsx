@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { deckSummary, type RoomInfo } from '@ws/engine';
 import { authErrorText, type Auth } from './auth.ts';
-import { CardFace, CardInfo } from './CardFace.tsx';
+import { CardFace, CardInfo, cardImg } from './CardFace.tsx';
 import { DeckBuilder, SeriesBrowser } from './DeckBuilder.tsx';
 import { deckSeries, deleteDeck, saveDeck, useMyDecks, type SavedDeck } from './decks.ts';
 import { PRESET_DECKS, SERIES, SERIES_CARDS, cardById, seriesInfo, type DeckInfo } from './meta.ts';
@@ -339,15 +339,29 @@ function ServerStatus() {
   return <div className="srv-status"><i />{text}</div>;
 }
 
+// 大廳背景：每次進大廳隨機一張（盡量不和上一次重複）
+declare const __LOBBY_BGS__: string[];
+function pickLobbyBg(): string | null {
+  const all = __LOBBY_BGS__;
+  if (!all.length) return null;
+  let last: string | null = null;
+  try { last = sessionStorage.getItem('ws-lobby-bg'); } catch { /* 存不了就不管重複 */ }
+  const pool = all.length > 1 ? all.filter((f) => f !== last) : all;
+  const pick = pool[Math.floor(Math.random() * pool.length)]!;
+  try { sessionStorage.setItem('ws-lobby-bg', pick); } catch { /* 同上 */ }
+  return pick;
+}
+
 export function LobbyScreen({ name, onDecks, onLogout, onRename }: { name: string; onDecks: () => void; onLogout: () => void; onRename: (n: string) => void }) {
   const { status } = useNet();
   const [dlg, setDlg] = useState<'create' | 'join' | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const ready = status === 'online';
+  const [bg] = useState(pickLobbyBg);
 
   return (
-    <div className="screen lobby">
+    <div className="screen lobby" style={bg ? { backgroundImage: `url(${cardImg(`bg/${bg}`)})` } : undefined}>
       <header className="lobby-top">
         <div className="brand"><img className="logo" src="/logo.png" alt="Weiß Schwarz" /><b>黑白雙翼 對戰模擬器</b></div>
         <div className="who-box">
@@ -363,17 +377,17 @@ export function LobbyScreen({ name, onDecks, onLogout, onRename }: { name: strin
         </div>
       </header>
       <ServerStatus />
-      <div className="lobby-grid">
-        <button className="big-btn create" disabled={!ready} onClick={() => setDlg('create')}>
-          <i>＋</i><b>建立遊戲</b><span>開一個私人房間，把 6 位數代碼傳給朋友</span>
+      <nav className="lobby-menu">
+        <button className="sk-btn create" disabled={!ready} onClick={() => setDlg('create')}>
+          <i>＋</i><b>建立遊戲</b>
         </button>
-        <button className="big-btn join" disabled={!ready} onClick={() => setDlg('join')}>
-          <i>→</i><b>加入遊戲／觀戰</b><span>輸入朋友給你的房間代碼</span>
+        <button className="sk-btn join" disabled={!ready} onClick={() => setDlg('join')}>
+          <i>➜</i><b>加入遊戲／觀戰</b>
         </button>
-        <button className="big-btn decks" onClick={onDecks}>
-          <i>▤</i><b>我的牌組</b><span>預組與自己組的牌組</span>
+        <button className="sk-btn decks" onClick={onDecks}>
+          <i>▤</i><b>我的牌組</b>
         </button>
-      </div>
+      </nav>
       {dlg === 'create' && <CreateDialog onClose={() => setDlg(null)} />}
       {dlg === 'join' && <JoinDialog onClose={() => setDlg(null)} />}
     </div>

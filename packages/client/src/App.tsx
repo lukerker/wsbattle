@@ -10,7 +10,7 @@ export default function App() {
   const [name, setName] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
   const [sub, setSub] = useState<'lobby' | 'decks'>('lobby');
-  const { room, error } = useNet();
+  const { room, error, status } = useNet();
   const [toast, setToast] = useState<string | null>(null);
   const started = useRef(false);
 
@@ -62,7 +62,20 @@ export default function App() {
   };
 
   let body;
-  if (room && (room.status === 'playing' || room.status === 'ended')) body = <GameScreen room={room} />;
+  if (status === 'kicked') {
+    body = (
+      <div className="screen login">
+        <div className="login-card">
+          <h1>已在其他裝置登入</h1>
+          <p className="sub">你的帳號在另一台裝置（或分頁）登入了，這裡已經中斷連線。</p>
+          <div className="actions" style={{ justifyContent: 'center' }}>
+            <button className="btn primary" onClick={() => net.resume()}>在這裡繼續</button>
+            <button className="btn ghost" onClick={() => void logout()}>登出</button>
+          </div>
+        </div>
+      </div>
+    );
+  } else if (room && (room.status === 'playing' || room.status === 'ended')) body = <GameScreen room={room} />;
   else if (room) body = <RoomScreen room={room} />;
   else if (sub === 'decks') body = <DecksScreen onBack={() => setSub('lobby')} />;
   else body = <LobbyScreen name={name} onDecks={() => setSub('decks')} onLogout={logout} onRename={(n) => void auth.setName(n).then((u) => setName(u.name))} />;

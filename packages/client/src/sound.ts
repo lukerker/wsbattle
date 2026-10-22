@@ -1,5 +1,5 @@
 // 音效：用 Web Audio 即時合成，不用音檔。音量與開關存在這台裝置（localStorage）。
-// 瀏覽器要使用者先點過畫面才允許出聲，所以第一次點擊時才建立／喚醒 AudioContext。
+// 瀏覽器要使用者先點過畫面才允許出聲，所以點擊時才建立／喚醒 AudioContext（手機的細節見下方 unlock）。
 import { useSyncExternalStore } from 'react';
 
 export type SoundName = 'turn' | 'alert' | 'shuffle' | 'draw' | 'play' | 'land' | 'flip' | 'hit' | 'win' | 'lose';
@@ -59,14 +59,40 @@ function audio(): AudioContext | null {
   return ctx;
 }
 
-// 第一次點擊畫面：喚醒音效
+// 喚醒音效：瀏覽器只在「真正的使用者操作」裡允許出聲。手機觸控的 pointerdown／touchstart 不算，
+// 要等到 touchend／pointerup／click 才行，所以這幾個都聽，直到音效真的跑起來。
+// iPhone 的 Web Audio 預設跟著靜音開關走（開了靜音就完全沒聲音），宣告成「播放」類型才不受影響（Safari 16.4+）；
+// 舊版 iOS 改用播一段無聲的 <audio> 讓整頁切到播放模式。
+let unlocked = false;
+function unlock() {
+  const a = audio();
+  if (!a) return;
+  if (!unlocked) {
+    unlocked = true;
+    const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+    if (session) {
+      try { session.type = 'playback'; } catch { /* 不支援就算了 */ }
+    } else {
+      const el = new Audio(SILENT_WAV);
+      el.setAttribute('playsinline', '');
+      void el.play().catch(() => undefined);
+    }
+    // iOS 舊版：在使用者操作當下播一個無聲的音源才會真正解鎖
+    const src = a.createBufferSource();
+    src.buffer = a.createBuffer(1, 1, 22050);
+    src.connect(a.destination);
+    src.start(0);
+  }
+  if (a.state !== 'running') void a.resume().catch(() => undefined);
+}
+// 極短的無聲 WAV
+const SILENT_WAV = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQQAAACAgICA';
 if (typeof window !== 'undefined') {
-  const unlock = () => {
-    const a = audio();
-    if (a && a.state === 'suspended') void a.resume();
-  };
-  window.addEventListener('pointerdown', unlock, { capture: true });
-  window.addEventListener('keydown', unlock, { capture: true });
+  for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'] as const) window.addEventListener(ev, unlock, { capture: true, passive: true });
+  // 切到別的 App 再回來，iOS 會把音效停在 interrupted／suspended：回來時再叫醒（不行的話下一次點擊會叫醒）
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && ctx && ctx.state !== 'running') void ctx.resume().catch(() => undefined);
+  });
 }
 
 // 清脆的鈴聲：正弦波＋高八度泛音，快速起音、慢慢衰減

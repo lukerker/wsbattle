@@ -28,12 +28,15 @@
 - 開局流程：進房 → VS 動畫（雙方牌組主視覺從左右撞在一起，每間房只播一次）→ 雙方同時換牌 → 決定先後攻（兩張蓋著的大卡，雙方各點一張，都選好後翻開）。先後攻卡面用開房玩家在「我的牌組」上傳的圖（存 Firestore `turnCards/<uid>`），沒有就用系統預設（`cards/system first.png`、`system last.png`）
 - 對戰紀錄：場地右側兩個名牌之間顯示雙方動作與發動的效果（窄螢幕用上方「紀錄」按鈕開）；只用公開資訊
 - 公開、翻牌類效果（公開牌組上方、集中、翻 N 張）：卡翻到牌組旁邊，跳出視窗給發動的玩家看結果，按鈕寫明結果（例「加到手牌」「抽 X 張」「放到休息室」）；對手不用按確認，從動畫和紀錄得知。卡面寫「相手に見せ」的才要對手確認
+- 大廳：走「世界計畫 colorful stage」風格，滿版背景圖每次進大廳隨機一張（`cards/bg_*.png`），斜切的白色大按鈕不放說明文字
 - 視覺：深色專業介面，場地照官方場地圖配置（`cards/ws battle ground.jpg`）並用灰藍桌墊質感；牌堆用真牌背（`cards/card back.png`）並顯示厚度；每個系列一個主題色點綴
 - 場地配置（我方）：中央前列 3 格、其下後列 2 格；名場面在後列左邊（橫放、顯示卡面）；等級區在名場面下方（橫放疊起）；能量區在最左直排；傷害區在最下排往右錯開；右側由上而下為回憶區、牌組、休息室。對手點對稱，但卡片文字不倒轉
 - 卡面預覽與效果說明放左側（手機多用右手操作，避免遮擋）；手機橫向時手牌在右側
 - 動畫：翻牌（Y 軸 3D 旋轉）、橫置（90 度）、倒置（180 度）、位移與淡入淡出；只用 transform 和 opacity。節奏要悠閒：出牌（角色、名場面、事件）從手牌翻開放大到先後攻卡的大小、停一下再貼到場上（約 2 秒）；判定、傷害從牌組 3D 翻開，一張一張停；放到能量區飛慢一點；洗牌／重洗在牌組上播洗牌。每步的時間在 `client/src/anim.ts`
 - 遊戲結束：先停在最後的場面打出勝負橫幅，再出結算（遊玩時間、回合數、先攻、雙方統計、最後的攻防），可收起來看最後的場地。結束原因在 `gameOver` 事件，統計由房間累計（`engine/src/session/stats.ts`）
-- 音效：Web Audio 即時合成（`client/src/sound.ts`），不用音檔；輪到自己「叮～」、要回應（反擊、確認、對手回合中做選擇）「叮叮～」、洗牌、抽牌、出牌、翻牌、受傷、勝負。大廳和對戰上方列都有喇叭按鈕調音量／關閉，存在這台裝置
+- 音效：Web Audio 即時合成（`client/src/sound.ts`），不用音檔；輪到自己「叮～」、要回應（反擊、確認、對手回合中做選擇）「叮叮～」、洗牌、抽牌、出牌、翻牌、受傷、勝負。大廳和對戰上方列都有喇叭按鈕（使用者畫的 `speaker_on/off`）調音量／關閉，存在這台裝置。手機要在 touchend／click 解鎖音效，iPhone 用 `audioSession` 避開靜音開關。使用者之後會自己錄音效來換
+- 換牌階段用滑鼠時指到哪張就看哪張的效果（點是選要丟的牌）；觸控照舊點按
+- 同一個帳號在新裝置登入時，舊的連線收到 `kicked` 就停下來不重連，畫面顯示「在這裡繼續」
 - 開發節奏：品質優先，不設死線，一個系列一個系列完成
 
 ## 7 個系列
@@ -121,7 +124,7 @@ packages/client
 - `npm test`：跑引擎、卡片效果、房間與連線的測試
 - `npm run typecheck`：型別檢查（engine）
 - 部署前端：`npm run build --workspace @ws/client` 後 `npx firebase-tools deploy --only hosting`；改了 Firestore 規則加上 `npx firebase-tools deploy --only firestore:rules`（要在有 `cards/` 的這台電腦做）；伺服器：`git push` 到 main，Render 自動部署
-- `powershell -ExecutionPolicy Bypass -File scripts/prepare-images.ps1`：把系統先攻／後攻卡和各系列 `*_VS.jpg` 縮成網頁用的圖（`cards/_web/`），新增 VS 圖後要跑一次再部署前端
+- `powershell -ExecutionPolicy Bypass -File scripts/prepare-images.ps1`：把系統先攻／後攻卡、各系列 `*_VS.jpg`、大廳背景 `bg_*.png` 縮成網頁用的圖（`cards/_web/`），喇叭圖示縮到 `client/public/icons/`；新增或換圖後要跑一次再部署前端
 - `node scripts/build-review.ts BTR-W107`：產生 `docs/review/` 的三欄核對表（補充包：`GCR-SE48-BP`）
 - `node scripts/fetch-cards.ts GBF-S134 001-132 P01 P02EX`：抓官方卡表的日文與數值到 `data/cards/GBF-S134.json`（範圍照位數補零，稀有度字尾會拿掉）
 - 新增系列：卡片檔放 `packages/engine/src/cards/`，在 `cards/index.ts` 登記（伺服器、畫面、測試都從那裡拿）；`client/src/meta.ts` 的 `SERIES` 加名稱與主題色；VS 圖檔名開頭不是卡號代碼的，要在 `scripts/prepare-images.ps1` 的 `$code` 對照

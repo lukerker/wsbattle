@@ -96,7 +96,7 @@ describe('登入', () => {
     m.connect(a2);
     await m.message(a2, { t: 'hello', name: '路可', devId: idFor('路可') });
     expect(a.closed).toBe(true);
-    expect(a.error).toMatch('其他地方');
+    expect(a.last('kicked')).toBeTruthy();
     await send(m, a2, { t: 'rejoin', code });
     expect(a2.room?.you).toBe(0);
     expect(a2.state?.viewer).toBe(0);

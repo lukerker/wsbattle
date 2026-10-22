@@ -6,6 +6,15 @@ import { defineConfig, type Plugin } from 'vite';
 // 卡圖：專案根目錄 cards/ 裡的卡面圖，網址是 /card-img/<系列>/<卡號>.webp（例：/card-img/BTR/W107-T01.webp），牌背是 /card-img/back.png。
 // 檔名：預組 BTR_W107_T01(4).webp（括號是張數）、補充包 GBF_S134_001SP.webp、GCR_SE48_01GBC.webp（數字後面是稀有度，拿掉）。
 // 開發時直接從 cards/ 讀；建置時複製進輸出資料夾，跟著前端網站一起部署。cards/ 不進版本庫。
+// 大廳背景：scripts/prepare-images.ps1 產生的 cards/_web/bg/*.jpg，網址 /card-img/bg/<檔名>
+function lobbyBackgrounds(): string[] {
+  try {
+    return readdirSync(join(import.meta.dirname, '../../cards/_web/bg')).filter((f) => f.endsWith('.jpg')).sort();
+  } catch {
+    return []; // 沒有背景圖：大廳用純色背景
+  }
+}
+
 function cardImages(): Plugin {
   const root = join(import.meta.dirname, '../../cards');
   const index = new Map<string, string>(); // 'BTR/W107-T01.webp' → 檔案路徑
@@ -29,6 +38,7 @@ function cardImages(): Plugin {
     try {
       for (const f of readdirSync(join(root, '_web/vs'))) index.set(`vs/${f}`, join(root, '_web/vs', f));
     } catch { /* 還沒產生 VS 圖 */ }
+    for (const f of lobbyBackgrounds()) index.set(`bg/${f}`, join(root, '_web/bg', f));
   };
   return {
     name: 'card-images',
@@ -58,6 +68,6 @@ function cardImages(): Plugin {
 // 卡圖網址加上每次建置不同的版本號：部署後所有裝置都會重新抓圖（避免舊的快取，例如卡圖補上前快取到的錯誤內容）
 export default defineConfig({
   plugins: [react(), cardImages()],
-  define: { __ASSET_VER__: JSON.stringify(Date.now().toString(36)) },
+  define: { __ASSET_VER__: JSON.stringify(Date.now().toString(36)), __LOBBY_BGS__: JSON.stringify(lobbyBackgrounds()) },
   server: { host: true, port: 5173 },
 });

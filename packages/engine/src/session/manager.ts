@@ -211,7 +211,7 @@ export class RoomManager {
     if (msg.name && this.opts.verifyToken) user = { ...user, name: String(msg.name).trim().slice(0, MAX_NAME) || user.name };
     const old = this.byUser.get(user.id);
     if (old && old !== s.conn) {
-      old.send({ t: 'error', message: '你的帳號在其他地方登入了' });
+      old.send({ t: 'kicked' }); // 新登入的裝置優先，舊的停下來不再重連（不然兩邊會互踢）
       const os = this.sessions.get(old);
       if (os) s.code = os.code; // 接手原本所在的房間
       this.sessions.delete(old);
