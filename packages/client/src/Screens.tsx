@@ -341,7 +341,7 @@ function ServerStatus() {
 
 // 大廳背景：每次進大廳隨機一張（盡量不和上一次重複）
 declare const __LOBBY_BGS__: string[];
-function pickLobbyBg(): string | null {
+export function pickLobbyBg(): string | null {
   const all = __LOBBY_BGS__;
   if (!all.length) return null;
   let last: string | null = null;
@@ -352,7 +352,7 @@ function pickLobbyBg(): string | null {
   return pick;
 }
 
-export function LobbyScreen({ name, onDecks, onLogout, onRename }: { name: string; onDecks: () => void; onLogout: () => void; onRename: (n: string) => void }) {
+export function LobbyScreen({ name, onDecks, onTutorial, onLogout, onRename }: { name: string; onDecks: () => void; onTutorial: () => void; onLogout: () => void; onRename: (n: string) => void }) {
   const { status } = useNet();
   const [dlg, setDlg] = useState<'create' | 'join' | null>(null);
   const [editing, setEditing] = useState(false);
@@ -386,6 +386,9 @@ export function LobbyScreen({ name, onDecks, onLogout, onRename }: { name: strin
         </button>
         <button className="sk-btn decks" onClick={onDecks}>
           <i>▤</i><b>我的牌組</b>
+        </button>
+        <button className="sk-btn tutorial" onClick={onTutorial}>
+          <i>？</i><b>教學</b>
         </button>
       </nav>
       {dlg === 'create' && <CreateDialog onClose={() => setDlg(null)} />}

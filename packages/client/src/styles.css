@@ -566,7 +566,7 @@ button { font: inherit; color: inherit; }
   transition: transform 0.18s, background 0.18s, color 0.18s, box-shadow 0.18s;
 }
 .sk-btn > * { transform: skewX(12deg); }
-.sk-btn.create { --c: #ff5a92; } .sk-btn.join { --c: #33c4e8; } .sk-btn.decks { --c: #ffb21e; }
+.sk-btn.create { --c: #ff5a92; } .sk-btn.join { --c: #33c4e8; } .sk-btn.decks { --c: #ffb21e; } .sk-btn.tutorial { --c: #9b7bff; }
 .sk-btn i { flex: none; width: 50px; height: 50px; margin-left: 8px; display: grid; place-items: center; border-radius: 50%; font-style: normal; font-size: 26px; font-weight: 900; color: #fff; background: var(--c); box-shadow: 0 0 0 3px #fff, 0 3px 8px rgba(0, 0, 0, 0.15); }
 .sk-btn b { font-size: 26px; font-weight: 900; letter-spacing: 0.06em; white-space: nowrap; }
 .sk-btn:hover:not(:disabled) { transform: skewX(-12deg) translateX(-10px); color: #fff; background: linear-gradient(90deg, var(--c) 0 14px, color-mix(in srgb, var(--c) 88%, #fff) 14px); box-shadow: 10px 10px 0 color-mix(in srgb, var(--c) 45%, transparent), 0 14px 30px rgba(60, 40, 120, 0.3); }
@@ -633,10 +633,10 @@ button { font: inherit; color: inherit; }
 @media (max-height: 520px) {
   .screen { padding: 8px 14px; }
   .lobby-top { padding-bottom: 6px; }
-  .lobby-menu { gap: 10px; padding: 4px 16px 8px 0; }
-  .sk-btn { width: min(320px, 44vw); height: 58px; gap: 10px; padding-right: 20px; }
-  .sk-btn i { width: 38px; height: 38px; font-size: 20px; }
-  .sk-btn b { font-size: 19px; }
+  .lobby-menu { gap: 8px; padding: 2px 16px 6px 0; }
+  .sk-btn { width: min(320px, 44vw); height: 50px; gap: 10px; padding-right: 20px; }
+  .sk-btn i { width: 34px; height: 34px; font-size: 18px; }
+  .sk-btn b { font-size: 18px; }
   .room-box { margin-top: 8px; padding: 12px; gap: 8px; }
   .code-big b { width: 34px; height: 44px; font-size: 24px; }
   .login-card { padding: 14px 18px; }
@@ -997,3 +997,159 @@ p.small { margin: 0; font-size: 13px; }
 .topbar .sound-btn { width: 32px; height: 32px; padding: 3px; }
 .lobby .sound-pop { background: rgba(255, 255, 255, 0.96); border: 2px solid #fff; color: #3a3760; box-shadow: 0 12px 30px rgba(60, 40, 120, 0.3); }
 .sound-pop .btn { align-self: flex-start; }
+
+/* ═════ 教學 ═════ */
+.tut {
+  --ink: #3a3760; position: relative; isolation: isolate; height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; gap: 12px; padding: 14px 18px;
+  background: #d9d3f3; color: var(--ink); overflow: hidden;
+}
+.tut::before { content: ''; position: absolute; inset: -20px; z-index: -1; background: var(--tut-bg, none) center / cover no-repeat; filter: blur(6px) saturate(1.1); }
+.tut::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(160deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.4)); }
+.tut-top { display: flex; align-items: center; gap: 12px; }
+.tut-pill {
+  flex: none; padding: 7px 16px; border-radius: 999px; border: 2px solid #fff; background: rgba(255, 255, 255, 0.9); color: var(--ink); font: inherit; font-weight: 800; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(60, 40, 120, 0.18);
+}
+.tut-pill:hover { background: #fff; }
+.tut-progress { flex: 1; display: flex; gap: 5px; }
+.tut-progress button { flex: 1; height: 12px; padding: 0; border: 2px solid #fff; border-radius: 999px; background: rgba(58, 55, 96, 0.18); box-shadow: 0 2px 6px rgba(60, 40, 120, 0.15); overflow: hidden; cursor: pointer; transform: skewX(-20deg); }
+.tut-progress button i { display: block; height: 100%; background: var(--tc); transition: width 0.3s; }
+.tut-main { min-height: 0; display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
+.tut-vis {
+  position: relative; min-height: 0; min-width: 0; container-type: size; border-radius: 18px; border: 3px solid #fff; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 35%, #2a3350, #151a28 75%); box-shadow: 0 10px 30px rgba(60, 40, 120, 0.28);
+}
+.tut-text {
+  min-height: 0; overflow-y: auto; padding: 20px 22px; border-radius: 18px; border: 3px solid #fff; background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 30px rgba(60, 40, 120, 0.2); animation: tut-in 0.35s ease-out both;
+}
+.tut-ch { display: inline-block; padding: 3px 14px; border-radius: 6px; transform: skewX(-12deg); background: var(--tc); color: #fff; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; }
+.tut-text h2 { margin: 10px 0 12px; font-size: 26px; font-weight: 900; letter-spacing: 0.04em; border-bottom: 3px solid color-mix(in srgb, var(--tc) 40%, transparent); padding-bottom: 8px; }
+.tut-body p { margin: 0 0 10px; font-size: 16px; line-height: 1.75; }
+.tut-body p.li { position: relative; padding-left: 18px; margin-bottom: 6px; }
+.tut-body p.li::before { content: ''; position: absolute; left: 3px; top: 0.65em; width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: var(--tc); }
+.tut-body b { color: color-mix(in srgb, var(--tc) 70%, #2a2650); font-weight: 900; }
+.tut-nav { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 0 6px 4px 14px; }
+.tut-nav .sk-btn { width: auto; height: 50px; padding: 0 28px; }
+.tut-nav .sk-btn b { font-size: 18px; }
+.tut-nav .sk-btn.back { --c: #9aa3c4; }
+.tut-nav .sk-btn.next { --c: var(--tc); }
+.tut-page { flex: none; white-space: nowrap; font-weight: 900; font-size: 15px; padding: 4px 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.85); }
+@keyframes tut-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+@keyframes tut-pop { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes tut-hl { 0%, 100% { box-shadow: 0 0 0 3px #ffd84d, 0 0 14px rgba(255, 216, 77, 0.55); } 50% { box-shadow: 0 0 0 3px #ffd84d, 0 0 30px rgba(255, 216, 77, 0.95); } }
+
+/* 目錄 */
+.tut-menu { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(40, 30, 80, 0.35); backdrop-filter: blur(3px); }
+.tut-menu-box { width: min(440px, 92vw); max-height: 86dvh; overflow-y: auto; padding: 18px 20px; border-radius: 18px; border: 3px solid #fff; background: rgba(255, 255, 255, 0.97); color: var(--ink); box-shadow: 0 20px 50px rgba(40, 30, 80, 0.35); }
+.tut-menu-box h3 { margin: 0 0 10px; font-size: 20px; font-weight: 900; }
+.tut-menu-box ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tut-menu-box button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 10px; border: 2px solid transparent; background: #f2f0fb; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.tut-menu-box button:hover, .tut-menu-box button.on { border-color: var(--tc); background: color-mix(in srgb, var(--tc) 12%, #fff); }
+.tut-menu-box em { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--tc); color: #fff; font-style: normal; font-weight: 900; }
+.tut-menu-box b { flex: 1; font-weight: 800; }
+.tut-menu-box span { font-size: 12px; color: #8a86a8; }
+
+/* 示範：開頭輪播、作品一覽 */
+.tut-hero { position: absolute; inset: 0; }
+.tut-hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.06); transition: opacity 0.9s, transform 3.5s linear; }
+.tut-hero > img.on { opacity: 0.85; transform: scale(1); }
+.tut-hero-logo { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(10, 12, 24, 0.55), transparent 70%); }
+.tut-hero-logo img { width: min(62%, 420px); filter: drop-shadow(0 8px 30px rgba(0, 0, 0, 0.7)); animation: tut-pop 0.6s ease-out both; }
+.tut-series { position: absolute; inset: 0; padding: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 30cqw), 1fr)); align-content: center; gap: 10px; }
+.tut-series figure { margin: 0; animation: tut-pop 0.45s ease-out both; }
+.tut-series figure div { aspect-ratio: 16 / 9; max-height: 26cqh; border-radius: 10px; overflow: hidden; border: 2px solid var(--pc); background: #0d1018; }
+.tut-series img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tut-series figcaption { margin-top: 4px; font-size: 12px; font-weight: 800; color: #fff; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 示範：卡片部位 */
+.tut-anat { position: absolute; inset: 0; display: grid; place-items: center; }
+.tut-anat-card { position: relative; height: min(calc(100cqh - 40px), calc((100cqw - 220px) * 1.4)); aspect-ratio: 400 / 559; animation: tut-pop 0.4s ease-out both; }
+.tut-anat-card > img { width: 100%; height: 100%; display: block; border-radius: 4%; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55); }
+.tut-anat.land .tut-anat-card { --u: min(calc(100cqh - 40px), calc((100cqw - 60px) / 1.4)); aspect-ratio: auto; width: calc(var(--u) * 1.4); height: var(--u); }
+.tut-anat.land .cimg { position: absolute; inset: 0; }
+.spot { position: absolute; transform: translate(-50%, -50%); border: 3px solid #ffd84d; border-radius: 8px; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 16px rgba(255, 216, 77, 0.8); animation: tut-spot 1.6s ease-in-out infinite both; pointer-events: none; }
+.spot em { position: absolute; padding: 3px 10px; border-radius: 6px; background: #ffd84d; color: #2a2300; font-style: normal; font-size: 13px; font-weight: 900; white-space: nowrap; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4); }
+.spot.l em { right: calc(100% + 10px); top: 50%; transform: translateY(-50%); }
+.spot.r em { left: calc(100% + 10px); top: 50%; transform: translateY(-50%); }
+.spot.t em { bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); }
+.spot.b em { top: calc(100% + 8px); left: 50%; transform: translateX(-50%); }
+@keyframes tut-spot { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 60% { box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 26px rgba(255, 216, 77, 1); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+
+/* 示範：一排卡片（名場面橫放佔 1.4 張寬） */
+.tut-cards {
+  --unit: min(calc((100cqw - 40px - (var(--n) - 1) * 14px) / var(--units)), calc((100cqh - 56px) / 1.4), 190px);
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 14px;
+}
+.tut-cards figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: tut-pop 0.45s ease-out both; }
+.tut-cards-img { --u: var(--unit); position: relative; width: var(--unit); height: calc(var(--unit) * 1.4); }
+.tut-cards figure.land .tut-cards-img { width: calc(var(--unit) * 1.4); height: var(--unit); }
+.tut-cards figcaption { padding: 3px 14px; border-radius: 6px; transform: skewX(-12deg); background: var(--tc); color: #fff; font-weight: 900; font-size: 14px; }
+
+/* 示範：8 個階段 */
+.tut-phases { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 16px; }
+.tut-phases ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: min(560px, 100%); }
+.tut-phases li { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; transform: skewX(-10deg); background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.15); color: #c9cde0; transition: background 0.3s, color 0.3s, transform 0.3s; }
+.tut-phases li > * { transform: skewX(10deg); }
+.tut-phases li em { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, 0.15); font-style: normal; font-weight: 900; font-size: 13px; }
+.tut-phases li b { font-size: 16px; white-space: nowrap; }
+.tut-phases li.done { color: #fff; }
+.tut-phases li.on { background: var(--tc); border-color: #fff; color: #fff; transform: skewX(-10deg) scale(1.08); box-shadow: 0 6px 20px color-mix(in srgb, var(--tc) 60%, transparent); }
+.tut-phases li.on em { background: #fff; color: var(--tc); }
+.tut-phases p { margin: 0; min-height: 3em; max-width: 520px; text-align: center; color: #fff; font-size: 15px; line-height: 1.6; }
+
+/* 示範：先後攻卡 */
+.tut-turn { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8%; perspective: 900px; }
+.tut-turn-card { position: relative; height: min(70cqh, 60cqw); aspect-ratio: 5 / 7; transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(.3,.7,.3,1); }
+.tut-turn-card.open { transform: rotateY(180deg); }
+.tut-turn-card .face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 6%; overflow: hidden; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55); }
+.tut-turn-card .face.front { transform: rotateY(180deg); }
+.tut-turn-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* 示範：場地（直接用對戰的 Board） */
+.tut-demo {
+  --u: min(calc((100cqw - 24px) / 9.9), calc((100cqh - 44px) / 9.3));
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--u) * 0.15);
+}
+.tut-demo.with-hand { --u: min(calc((100cqw - 24px) / 9.9), calc((100cqh - 44px) / 11)); }
+.tut-demo .mat .cimg, .tut-demo .tut-hand .cardface { cursor: default; }
+.tut-demo-mat { position: relative; }
+.tut-hand { display: flex; justify-content: center; gap: calc(var(--u) * 0.08); min-height: calc(var(--u) * 1.5); padding: 2px 6px; border-radius: 10px; }
+.tut-hand .cardface { width: calc(var(--u) * 1); }
+.tut-hand .cardface:hover { transform: none; }
+.tut-caption {
+  position: absolute; top: 8px; left: 50%; z-index: 50; transform: translateX(-50%); max-width: calc(100% - 20px); padding: 5px 16px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95); color: var(--ink); font-weight: 800; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); animation: tut-cap 0.35s ease-out both;
+}
+@keyframes tut-cap { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.tut-dots { position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; }
+.tut-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.3); transition: background 0.2s, transform 0.2s; }
+.tut-dots i.on { background: #ffd84d; transform: scale(1.3); }
+
+/* 直向窄螢幕：示範在上、文字在下 */
+@media (max-aspect-ratio: 1/1) {
+  .tut-main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 46%) minmax(0, 1fr); }
+  .tut-nav { gap: 8px; padding-left: 8px; }
+  .tut-nav .sk-btn { height: 44px; padding: 0 16px; }
+  .tut-nav .sk-btn b { font-size: 15px; }
+}
+/* 手機橫向：縮小留白與字級 */
+@media (max-height: 520px) {
+  .tut { gap: 6px; padding: 6px 10px; }
+  .tut-pill { padding: 4px 12px; font-size: 13px; }
+  .tut-main { gap: 8px; grid-template-columns: 1.15fr 1fr; }
+  .tut-text { padding: 10px 14px; }
+  .tut-text h2 { margin: 6px 0 8px; font-size: 18px; padding-bottom: 5px; }
+  .tut-ch { font-size: 11px; padding: 2px 10px; }
+  .tut-body p { font-size: 13.5px; line-height: 1.6; margin-bottom: 6px; }
+  .tut-nav { padding: 0 4px 2px 10px; }
+  .tut-nav .sk-btn { height: 36px; padding: 0 18px; border-width: 2px; }
+  .tut-nav .sk-btn b { font-size: 14px; }
+  .tut-page { font-size: 12px; padding: 2px 10px; }
+  .tut-caption { font-size: 12px; padding: 3px 12px; top: 5px; }
+  .spot em { font-size: 11px; padding: 2px 7px; }
+  .tut-phases li { padding: 6px 8px; }
+  .tut-phases li b { font-size: 13px; }
+  .tut-phases p { font-size: 13px; }
+}

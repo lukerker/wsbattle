@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createAuth, type Auth } from './auth.ts';
 import GameScreen from './GameScreen.tsx';
 import { DecksScreen, LobbyScreen, LoginScreen, RoomScreen } from './Screens.tsx';
+import Tutorial from './Tutorial.tsx';
 import { net, useNet } from './net.ts';
 
 // 畫面流程：登入 → 大廳（建立／加入／我的牌組）→ 房間 → 對戰
@@ -9,7 +10,7 @@ export default function App() {
   const [auth, setAuth] = useState<Auth | null>(null);
   const [name, setName] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
-  const [sub, setSub] = useState<'lobby' | 'decks'>('lobby');
+  const [sub, setSub] = useState<'lobby' | 'decks' | 'tutorial'>('lobby');
   const { room, error, status } = useNet();
   const [toast, setToast] = useState<string | null>(null);
   const started = useRef(false);
@@ -78,7 +79,8 @@ export default function App() {
   } else if (room && (room.status === 'playing' || room.status === 'ended')) body = <GameScreen room={room} />;
   else if (room) body = <RoomScreen room={room} />;
   else if (sub === 'decks') body = <DecksScreen onBack={() => setSub('lobby')} />;
-  else body = <LobbyScreen name={name} onDecks={() => setSub('decks')} onLogout={logout} onRename={(n) => void auth.setName(n).then((u) => setName(u.name))} />;
+  else if (sub === 'tutorial') body = <Tutorial onBack={() => setSub('lobby')} />;
+  else body = <LobbyScreen name={name} onDecks={() => setSub('decks')} onTutorial={() => setSub('tutorial')} onLogout={logout} onRename={(n) => void auth.setName(n).then((u) => setName(u.name))} />;
 
   return (
     <>
